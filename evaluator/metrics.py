@@ -9,12 +9,18 @@ class Metric():
     def summary(self):
         pass
 
+    def reset(self):
+        pass
+
 class IoU(Metric):
     def __init__(self, classes, class_names=None, ignore_idx=4):
         self.classes = classes
         self.class_names = class_names
         self.ignore_idx = ignore_idx
 
+        self.reset()
+
+    def reset(self):
         # Metric counters
         self._total_union = {cls_i: 0 for cls_i in self.classes}
         self._total_intersection = {cls_i: 0 for cls_i in self.classes}
@@ -29,6 +35,9 @@ class IoU(Metric):
 
             self._total_intersection[cls_i] += intersection
             self._total_union[cls_i] += union
+
+        # Return current summary
+        return self.summary()
 
     def summary(self):
         results = {}
