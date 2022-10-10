@@ -43,8 +43,8 @@ class IoU(Metric):
         results = {}
         for i, cls_i in enumerate(self.classes):
             cls_iou = self._total_intersection[cls_i] / self._total_union[cls_i]
-            cls_name = self.class_names[i] if self.class_names is not None: else '%d' % cls_i
+            cls_name = self.class_names[i] if self.class_names is not None else '%d' % cls_i
             results['IoU_%s' % cls_name] = cls_iou
 
-        results['mIoU'] = sum(results.values) / len(results)
+        results['mIoU'] = sum(results.values()) / len(results)
         return results
