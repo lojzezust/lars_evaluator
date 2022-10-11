@@ -35,11 +35,13 @@ class Evaluator():
         # 3. Evaluate detection and FPs
 
         # 4. Evaluate water-edge
-        maritime_summary = self.maritime_metrics.compute(mask_pred, mask_gt)
+        maritime_summary = self.maritime_metrics.compute(mask_pred, mask_gt, mask_inst)
 
         return {
             'mIoU': iou_summary['mIoU'],
-            'WE_acc': maritime_summary['WE_acc']
+            'WE_acc': maritime_summary['WE_acc'],
+            'Re': maritime_summary['Re'],
+            'FP': maritime_summary['FP']
         }
 
     def evaluate(self, method_name):

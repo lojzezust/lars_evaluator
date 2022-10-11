@@ -69,10 +69,17 @@ class MaritimeMetrics(Metric):
         self._we_total_correct = 0
         self._we_total_area = 0
 
-    def compute(self, mask_pred, mask_gt):
+        self._dyobs_tp = 0
+        self._dyobs_fn = 0
+
+        self._water_fp = 0
+        self._water_total = 0
+
+    def compute(self, mask_pred, mask_gt, mask_inst):
         # 1.1 Get water-edge area mask
         water_mask = (mask_gt == self.water_class).astype(np.uint8)
         obstacle_mask = (mask_gt == self.obstacle_class).astype(np.uint8) # TODO: only static obstacles
+        obstacle_mask = obstacle_mask & ~(mask_inst > 0)
 
         # TODO: configurable dilation width
         obst_d = dilate_mask(obstacle_mask, 11)
@@ -83,14 +90,42 @@ class MaritimeMetrics(Metric):
         self._we_total_area += we_mask.sum()
         self._we_total_correct += np.sum((mask_gt == mask_pred) * we_mask)
 
-        # TODO: Dynamic obstacles and FP detections
+        # 2. Dynamic obstacles recall
+        valid_preds = (mask_pred == self.obstacle_class).astype(np.uint8)
+        valid_preds = valid_preds & ~obstacle_mask # Remove static obstacles from predictions
+        dyn_obst_mask_d = np.zeros_like(valid_preds)
+        for obst_i in np.unique(mask_inst):
+            if obst_i==0: continue
+
+            obst_mask = (mask_inst == obst_i).astype(np.uint8)
+            obst_mask_d = dilate_mask(obst_mask, 7) # TODO: cfg value for dilation
+            dyn_obst_mask_d |= obst_mask_d
+            pred_area = np.sum(valid_preds & obst_mask_d)
+            total_area = np.sum(obst_mask)
+
+            if pred_area > 0.7 * total_area: # TODO: threshold
+                self._dyobs_tp += 1
+            else:
+                self._dyobs_fn += 1
+
+
+        # 3. False positive detections
+        # Remove already evaluated masks from water mask
+        # TODO: Improve
+        water_mask_remain = water_mask & ~we_mask
+        water_mask_remain = water_mask_remain & ~dyn_obst_mask_d
+
+        self._water_total += water_mask_remain.sum()
+        self._water_fp += np.sum((mask_gt != mask_pred) * we_mask)
 
         # Return current summary
         return self.summary()
 
     def summary(self):
         results = {
-            'WE_acc': self._we_total_correct / self._we_total_area
+            'WE_acc': self._we_total_correct / self._we_total_area,
+            'Re': self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn),
+            'FP': self._water_fp / self._water_total * 100.
         }
 
         return results
