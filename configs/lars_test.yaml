@@ -1,7 +1,7 @@
 
 PATHS:
   DATASET_ROOT: '/home/lojze/data/datasets/LaRS'
-  PREDICTIONS: '/home/lojze/data/predictions/lars'
+  PREDICTIONS: '/home/lojze/data/predictions/lars/segmentation'
   RESULTS: './results'
 
 DATASET:

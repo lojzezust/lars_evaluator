@@ -15,6 +15,7 @@ class Evaluator():
             self.image_list = [l.strip() for l in file]
 
         self.iou = M.IoU(classes=cfg.CLASSES.IDS, class_names=cfg.CLASSES.NAMES, ignore_idx=cfg.CLASSES.IGNORE_ID)
+        self.maritime_metrics = M.MaritimeMetrics(0, 1, 2, cfg.CLASSES.IGNORE_ID) # TODO: cfg class ids for water, ...
 
     def evaluate_image(self, mask_pred, mask_gt, mask_inst):
         """Evaluates a single image
@@ -34,9 +35,11 @@ class Evaluator():
         # 3. Evaluate detection and FPs
 
         # 4. Evaluate water-edge
+        maritime_summary = self.maritime_metrics.compute(mask_pred, mask_gt)
 
         return {
-            'mIoU': iou_summary['mIoU']
+            'mIoU': iou_summary['mIoU'],
+            'WE_acc': maritime_summary['WE_acc']
         }
 
     def evaluate(self, method_name):

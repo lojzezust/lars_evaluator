@@ -2,3 +2,4 @@ Pillow
 numpy
 yacs
 tqdm
+opencv-python

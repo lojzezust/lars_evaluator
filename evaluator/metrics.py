@@ -1,6 +1,7 @@
 
 
 import numpy as np
+import cv2
 
 class Metric():
     def compute(self, mask_pred, mask_gt, **kwargs):
@@ -47,4 +48,49 @@ class IoU(Metric):
             results['IoU_%s' % cls_name] = cls_iou
 
         results['mIoU'] = sum(results.values()) / len(results)
+        return results
+
+def dilate_mask(mask, ksize=3, it=1):
+    kernel = np.ones((ksize,ksize), np.uint8)
+    out = cv2.dilate(mask, kernel, iterations=it)
+    return out
+
+class MaritimeMetrics(Metric):
+    def __init__(self, obstacle_class=0, water_class=1, sky_class=2, ignore_idx=4):
+        self.obstacle_class = obstacle_class
+        self.water_class = water_class
+        self.sky_class = sky_class
+        self.ignore_idx = ignore_idx
+
+        self.reset()
+
+    def reset(self):
+        # Metric counters
+        self._we_total_correct = 0
+        self._we_total_area = 0
+
+    def compute(self, mask_pred, mask_gt):
+        # 1.1 Get water-edge area mask
+        water_mask = (mask_gt == self.water_class).astype(np.uint8)
+        obstacle_mask = (mask_gt == self.obstacle_class).astype(np.uint8) # TODO: only static obstacles
+
+        # TODO: configurable dilation width
+        obst_d = dilate_mask(obstacle_mask, 11)
+        water_d = dilate_mask(water_mask, 11)
+        we_mask = obst_d & water_d # TODO: ignore regions
+
+        # 1.2 Update WE metric(s)
+        self._we_total_area += we_mask.sum()
+        self._we_total_correct += np.sum((mask_gt == mask_pred) * we_mask)
+
+        # TODO: Dynamic obstacles and FP detections
+
+        # Return current summary
+        return self.summary()
+
+    def summary(self):
+        results = {
+            'WE_acc': self._we_total_correct / self._we_total_area
+        }
+
         return results
