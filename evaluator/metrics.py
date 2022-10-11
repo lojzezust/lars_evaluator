@@ -27,7 +27,7 @@ class IoU(Metric):
 
     def compute(self, mask_pred, mask_gt):
         for cls_i in self.classes:
-            cls_pred = mask_pred == cls_i # TODO: ignore regions
+            cls_pred = (mask_pred == cls_i) & (mask_gt != self.ignore_idx)
             cls_gt = mask_gt == cls_i
 
             intersection = np.bitwise_and(cls_pred, cls_gt).sum()
