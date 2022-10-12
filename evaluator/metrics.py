@@ -40,10 +40,7 @@ class IoU(Metric):
 
             # Store current frame IoU
             cls_name = self.class_names[i] if self.class_names is not None else '%d' % cls_i
-            if union != 0:
-                frame_summary['IoU_%s' % cls_name] = intersection / union
-            else:
-                frame_summary['IoU_%s' % cls_name] = 0
+            frame_summary['IoU_%s' % cls_name] = intersection / union if union != 0 else 1.
 
         frame_summary['mIoU'] = sum(frame_summary.values()) / len(frame_summary)
 
@@ -142,10 +139,10 @@ class MaritimeMetrics(Metric):
 
         # Metrics of the current frame
         frame_summary = {
-            'WE_acc': we_correct / we_area,
+            'WE_acc': we_correct / we_area if we_area > 0 else 1.,
             'TP': tp_n,
             'FN': fn_n,
-            'FPr': fp_area / water_area * 100.
+            'FPr': fp_area / water_area * 100 if water_area > 0 else 0.
         }
 
         # Return current frame summary and overall summary
