@@ -1,5 +1,6 @@
 # Project
 /venv/
+/results/
 
 # Python
 __pycache__/

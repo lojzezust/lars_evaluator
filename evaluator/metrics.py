@@ -27,7 +27,8 @@ class IoU(Metric):
         self._total_intersection = {cls_i: 0 for cls_i in self.classes}
 
     def compute(self, mask_pred, mask_gt):
-        for cls_i in self.classes:
+        frame_summary = {}
+        for i,cls_i in enumerate(self.classes):
             cls_pred = (mask_pred == cls_i) & (mask_gt != self.ignore_idx)
             cls_gt = mask_gt == cls_i
 
@@ -37,8 +38,17 @@ class IoU(Metric):
             self._total_intersection[cls_i] += intersection
             self._total_union[cls_i] += union
 
-        # Return current summary
-        return self.summary()
+            # Store current frame IoU
+            cls_name = self.class_names[i] if self.class_names is not None else '%d' % cls_i
+            if union != 0:
+                frame_summary['IoU_%s' % cls_name] = intersection / union
+            else:
+                frame_summary['IoU_%s' % cls_name] = 0
+
+        frame_summary['mIoU'] = sum(frame_summary.values()) / len(frame_summary)
+
+        # Return current frame summary and overall summary
+        return frame_summary, self.summary()
 
     def summary(self):
         results = {}
@@ -53,6 +63,11 @@ class IoU(Metric):
 def dilate_mask(mask, ksize=3, it=1):
     kernel = np.ones((ksize,ksize), np.uint8)
     out = cv2.dilate(mask, kernel, iterations=it)
+    return out
+
+def erode_mask(mask, ksize=3, it=1):
+    kernel = np.ones((ksize,ksize), np.uint8)
+    out = cv2.erode(mask, kernel, iterations=it)
     return out
 
 class MaritimeMetrics(Metric):
@@ -87,13 +102,18 @@ class MaritimeMetrics(Metric):
         we_mask = obst_d & water_d # TODO: ignore regions
 
         # 1.2 Update WE metric(s)
-        self._we_total_area += we_mask.sum()
-        self._we_total_correct += np.sum((mask_gt == mask_pred) * we_mask)
+        we_area = we_mask.sum()
+        we_correct = np.sum((mask_gt == mask_pred) * we_mask)
+        self._we_total_area += we_area
+        self._we_total_correct += we_correct
 
         # 2. Dynamic obstacles recall
         valid_preds = (mask_pred == self.obstacle_class).astype(np.uint8)
         valid_preds = valid_preds & ~obstacle_mask # Remove static obstacles from predictions
         dyn_obst_mask_d = np.zeros_like(valid_preds)
+
+        tp_n = 0
+        fn_n = 0
         for obst_i in np.unique(mask_inst):
             if obst_i==0: continue
 
@@ -105,21 +125,31 @@ class MaritimeMetrics(Metric):
 
             if pred_area > 0.7 * total_area: # TODO: threshold
                 self._dyobs_tp += 1
+                tp_n += 1
             else:
                 self._dyobs_fn += 1
+                fn_n += 1
 
 
         # 3. False positive detections
-        # Remove already evaluated masks from water mask
-        # TODO: Improve
-        water_mask_remain = water_mask & ~we_mask
-        water_mask_remain = water_mask_remain & ~dyn_obst_mask_d
+        # Only evaluate inside the water regions (erode to ignore object oversegmentations)
+        water_mask_e = erode_mask(water_mask, ksize=21) # TODO: configurable erosion size
 
-        self._water_total += water_mask_remain.sum()
-        self._water_fp += np.sum((mask_gt != mask_pred) * we_mask)
+        water_area = water_mask_e.sum()
+        fp_area = np.sum((mask_gt != mask_pred) * water_mask_e) # TODO: only obstacle FPs?
+        self._water_total += water_area
+        self._water_fp += fp_area
 
-        # Return current summary
-        return self.summary()
+        # Metrics of the current frame
+        frame_summary = {
+            'WE_acc': we_correct / we_area,
+            'TP': tp_n,
+            'FN': fn_n,
+            'FPr': fp_area / water_area * 100.
+        }
+
+        # Return current frame summary and overall summary
+        return frame_summary, self.summary()
 
     def summary(self):
         results = {
