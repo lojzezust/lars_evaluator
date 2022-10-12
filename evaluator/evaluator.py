@@ -5,6 +5,7 @@ import os.path as osp
 from tqdm.auto import tqdm
 import pandas as pd
 import json
+import evaluator.context as ctx
 
 import evaluator.metrics as M
 
@@ -49,7 +50,7 @@ class Evaluator():
         inst_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.INST_MASK_SUBDIR)
 
         frame_results = []
-        with tqdm(desc='Evaluating', total=len(self.image_list)) as pbar:
+        with tqdm(desc=method_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
             for img_name in self.image_list:
                 mask_pred_c = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
 
@@ -67,7 +68,10 @@ class Evaluator():
                 frame_summary['image'] = img_name
                 frame_results.append(frame_summary)
 
-                pbar.set_postfix(**overall_summary)
+                LOG_METRICS = ['mIoU', 'WE_acc', 'Re', 'FPr'] # TODO: to cfg
+                log_dict = {m:overall_summary[m] for m in LOG_METRICS}
+
+                pbar.set_postfix(**log_dict)
                 pbar.update()
 
 
