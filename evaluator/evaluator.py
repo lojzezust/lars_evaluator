@@ -18,8 +18,8 @@ class Evaluator():
         with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.SUBSET_LIST), 'r') as file:
             self.image_list = [l.strip() for l in file]
 
-        self.iou = M.IoU(classes=cfg.CLASSES.IDS, class_names=cfg.CLASSES.NAMES, ignore_idx=cfg.CLASSES.IGNORE_ID)
-        self.maritime_metrics = M.MaritimeMetrics(0, 1, 2, cfg.CLASSES.IGNORE_ID) # TODO: cfg class ids for water, ...
+        self.iou = M.IoU(cfg)
+        self.maritime_metrics = M.MaritimeMetrics(cfg) # TODO: cfg class ids for water, ...
 
     def evaluate_image(self, mask_pred, mask_gt, mask_inst):
         """Evaluates a single image
@@ -68,8 +68,7 @@ class Evaluator():
                 frame_summary['image'] = img_name
                 frame_results.append(frame_summary)
 
-                LOG_METRICS = ['mIoU', 'WE_acc', 'Re', 'FPr'] # TODO: to cfg
-                log_dict = {m:overall_summary[m] for m in LOG_METRICS}
+                log_dict = {m:overall_summary[m] for m in self.cfg.PROGRESS.METRICS}
 
                 pbar.set_postfix(**log_dict)
                 pbar.update()

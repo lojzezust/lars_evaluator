@@ -14,10 +14,10 @@ class Metric():
         pass
 
 class IoU(Metric):
-    def __init__(self, classes, class_names=None, ignore_idx=4):
-        self.classes = classes
-        self.class_names = class_names
-        self.ignore_idx = ignore_idx
+    def __init__(self, cfg):
+        self.classes = cfg.CLASSES.IDS
+        self.class_names = cfg.CLASSES.NAMES
+        self.ignore_idx = cfg.CLASSES.IGNORE_ID
 
         self.reset()
 
@@ -68,11 +68,13 @@ def erode_mask(mask, ksize=3, it=1):
     return out
 
 class MaritimeMetrics(Metric):
-    def __init__(self, obstacle_class=0, water_class=1, sky_class=2, ignore_idx=4):
-        self.obstacle_class = obstacle_class
-        self.water_class = water_class
-        self.sky_class = sky_class
-        self.ignore_idx = ignore_idx
+    def __init__(self, cfg):
+        self.obstacle_class = cfg.CLASSES.OBSTACLE_CLASS
+        self.water_class = cfg.CLASSES.WATER_CLASS
+        self.sky_class = cfg.CLASSES.SKY_CLASS
+        self.ignore_idx = cfg.CLASSES.IGNORE_ID
+
+        self.cfg = cfg
 
         self.reset()
 
@@ -83,8 +85,9 @@ class MaritimeMetrics(Metric):
 
         self._dyobs_tp = 0
         self._dyobs_fn = 0
+        self._dyobs_fp = 0
 
-        self._water_fp = 0
+        self._water_fp_area = 0
         self._water_total = 0
 
     def compute(self, mask_pred, mask_gt, mask_inst):
@@ -93,9 +96,8 @@ class MaritimeMetrics(Metric):
         obstacle_mask = (mask_gt == self.obstacle_class).astype(np.uint8) # TODO: only static obstacles
         obstacle_mask = obstacle_mask & ~(mask_inst > 0)
 
-        # TODO: configurable dilation width
-        obst_d = dilate_mask(obstacle_mask, 11)
-        water_d = dilate_mask(water_mask, 11)
+        obst_d = dilate_mask(obstacle_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
+        water_d = dilate_mask(water_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
         we_mask = obst_d & water_d # TODO: ignore regions
 
         # 1.2 Update WE metric(s)
@@ -109,50 +111,62 @@ class MaritimeMetrics(Metric):
         valid_preds = valid_preds & ~obstacle_mask # Remove static obstacles from predictions
         dyn_obst_mask_d = np.zeros_like(valid_preds)
 
-        tp_n = 0
-        fn_n = 0
+        num_tp = 0
+        num_fn = 0
         for obst_i in np.unique(mask_inst):
             if obst_i==0: continue
 
             obst_mask = (mask_inst == obst_i).astype(np.uint8)
-            obst_mask_d = dilate_mask(obst_mask, 7) # TODO: cfg value for dilation
+            obst_mask_d = dilate_mask(obst_mask, self.cfg.EVALUATION.SMALL_OBJECT_DILATION)
             dyn_obst_mask_d |= obst_mask_d
             pred_area = np.sum(valid_preds & obst_mask_d)
             total_area = np.sum(obst_mask)
 
-            if pred_area > 0.7 * total_area: # TODO: threshold
+            if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area:
                 self._dyobs_tp += 1
-                tp_n += 1
+                num_tp += 1
             else:
                 self._dyobs_fn += 1
-                fn_n += 1
+                num_fn += 1
 
 
         # 3. False positive detections
         # Only evaluate inside the water regions (erode to ignore object oversegmentations)
-        water_mask_e = erode_mask(water_mask, ksize=21) # TODO: configurable erosion size
+        water_mask_e = erode_mask(water_mask, ksize=self.cfg.EVALUATION.FP_WATER_EROSION_SIZE)
 
         water_area = water_mask_e.sum()
-        fp_area = np.sum((mask_gt != mask_pred) * water_mask_e) # TODO: only obstacle FPs?
+        fp_mask = (mask_pred == self.obstacle_class) * water_mask_e
+        num_fp, _ = cv2.connectedComponents(fp_mask.astype(np.uint8))
+        num_fp -= 1
+        fp_area = np.sum(fp_mask)
         self._water_total += water_area
-        self._water_fp += fp_area
+        self._water_fp_area += fp_area
+        self._dyobs_fp += num_fp
 
         # Metrics of the current frame
         frame_summary = {
             'WE_acc': we_correct / we_area if we_area > 0 else 1.,
-            'TP': tp_n,
-            'FN': fn_n,
-            'FPr': fp_area / water_area * 100 if water_area > 0 else 0.
+            'TP': num_tp,
+            'FN': num_fn,
+            'FP': num_fp,
+            'FPr': fp_area / water_area * 100 if water_area > 0 else 0.,
         }
 
         # Return current frame summary and overall summary
         return frame_summary, self.summary()
 
     def summary(self):
+        pr = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fp)
+        re = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn)
         results = {
             'WE_acc': self._we_total_correct / self._we_total_area,
-            'Re': self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn),
-            'FP': self._water_fp / self._water_total * 100.
+            'TP': self._dyobs_tp,
+            'FN': self._dyobs_fn,
+            'FP': self._dyobs_fp,
+            'FPr': self._water_fp_area / self._water_total * 100.,
+            'Pr': pr,
+            'Re': re,
+            'F1': 2 * pr * re / (pr + re)
         }
 
         return results

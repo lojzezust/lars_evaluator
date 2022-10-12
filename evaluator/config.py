@@ -15,6 +15,9 @@ _C.CLASSES = CN()
 _C.CLASSES.IDS = [0,1,2]
 _C.CLASSES.IGNORE_ID = 4
 _C.CLASSES.NAMES = ['obstacle', 'water', 'sky']
+_C.CLASSES.OBSTACLE_CLASS = 0
+_C.CLASSES.WATER_CLASS = 1
+_C.CLASSES.SKY_CLASS = 2
 _C.CLASSES.COLORS = [[247, 195,  37],  # Obstacles RGB color
                      [ 41, 167, 224],  # Water RGB color
                      [ 90,  75, 164]]  # Sky RGB color
@@ -24,6 +27,17 @@ _C.PATHS = CN()
 _C.PATHS.RESULTS       = "./results"                # Path to where the results will be saved
 _C.PATHS.DATASET_ROOT  = "/path/to/dataset"         # Path to where the dataset is stored
 _C.PATHS.PREDICTIONS   = "/path/to/predictions/"    # Path to where the segmentation predictions are stored
+
+# Evaluation configuration
+_C.EVALUATION = CN()
+_C.EVALUATION.MIN_COVERAGE = 0.7
+_C.EVALUATION.WE_DILATION_SIZE = 11
+_C.EVALUATION.FP_WATER_EROSION_SIZE = 21
+_C.EVALUATION.SMALL_OBJECT_DILATION = 7
+
+# Progress output configuration
+_C.PROGRESS = CN()
+_C.PROGRESS.METRICS = ['mIoU', 'WE_acc', 'F1']
 
 
 def get_cfg(config_file=None):
