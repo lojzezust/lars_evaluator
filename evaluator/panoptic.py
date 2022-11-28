@@ -6,18 +6,37 @@ from panopticapi.utils import rgb2id
 
 from evaluator.metrics import Metric
 
-VOID = 0
-OFFSET = 256 * 256 * 256
 
 class PanopticMetric(Metric):
     def compute(self, pan_pred, pan_gt, ann_gt, **kwargs):
         pass
 
+
+def parse_pq_results(pq_results):
+    result = dict()
+    result['PQ'] = 100 * pq_results['All']['pq']
+    result['SQ'] = 100 * pq_results['All']['sq']
+    result['RQ'] = 100 * pq_results['All']['rq']
+    result['PQ_th'] = 100 * pq_results['Things']['pq']
+    result['SQ_th'] = 100 * pq_results['Things']['sq']
+    result['RQ_th'] = 100 * pq_results['Things']['rq']
+    result['PQ_st'] = 100 * pq_results['Stuff']['pq']
+    result['SQ_st'] = 100 * pq_results['Stuff']['sq']
+    result['RQ_st'] = 100 * pq_results['Stuff']['rq']
+
+    return result
+
 class PQ(PanopticMetric):
-    def __init__(self):
+    def __init__(self, categories, cfg):
+        # TODO: cfg for void, etc.
+        self.categories = categories
+
+
         self._pq_stat = PQStat()
+        self._pq_stat_frame = None
 
     def compute(self, pan_pred, pan_gt, ann_gt, **kwargs):
+        self._pq_stat_frame = PQStat()
 
         # Convert predictions into individual components
         pan_pred_id = rgb2id(pan_pred) # Segment IDs
@@ -73,8 +92,8 @@ class PQ(PanopticMetric):
                 'area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
             iou = intersection / union
             if iou > 0.5:
-                self._pq_stat[gt_segms[gt_label]['category_id']].tp += 1
-                self._pq_stat[gt_segms[gt_label]['category_id']].iou += iou
+                self._pq_stat_frame[gt_segms[gt_label]['category_id']].tp += 1
+                self._pq_stat_frame[gt_segms[gt_label]['category_id']].iou += iou
                 gt_matched.add(gt_label)
                 pred_matched.add(pred_label)
 
@@ -87,7 +106,7 @@ class PQ(PanopticMetric):
             if gt_info['iscrowd'] == 1:
                 crowd_labels_dict[gt_info['category_id']] = gt_label
                 continue
-            self._pq_stat[gt_info['category_id']].fn += 1
+            self._pq_stat_frame[gt_info['category_id']].fn += 1
 
 
         # count false positives
@@ -105,10 +124,19 @@ class PQ(PanopticMetric):
             # the segment correspond to VOID and CROWD regions
             if intersection / pred_info['area'] > 0.5:
                 continue
-            self._pq_stat[pred_info['category_id']].fp += 1
+            self._pq_stat_frame[pred_info['category_id']].fp += 1
+
+        # Update global count
+        self._pq_stat += self._pq_stat_frame
 
 
     def summary(self):
+        frame_summary = self._get_summary(self._pq_stat_frame)
+        overall_summary = self._get_summary(self._pq_stat)
+
+        return frame_summary, overall_summary
+
+    def _get_summary(self, pq_stat):
         metrics = [('All', None), ('Things', True), ('Stuff', False)]
         pq_results = {}
 
