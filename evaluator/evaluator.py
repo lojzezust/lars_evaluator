@@ -8,6 +8,7 @@ import json
 import evaluator.context as ctx
 
 import evaluator.metrics as M
+import evaluator.panoptic as PM
 
 class SemanticEvaluator():
 
@@ -78,6 +79,78 @@ class SemanticEvaluator():
         frame_results_df = pd.DataFrame(frame_results).set_index('image')
         overall_summary = self.iou.summary()
         overall_summary.update(self.maritime_metrics.summary())
+
+        if not osp.exists(self.cfg.PATHS.RESULTS):
+            os.makedirs(self.cfg.PATHS.RESULTS)
+
+        frame_results_df.to_csv(osp.join(self.cfg.PATHS.RESULTS, '%s_frames.csv' % method_name))
+        with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
+            json.dump(overall_summary, file, indent=2)
+
+
+class PanopticEvaluator():
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+        # Read image list
+        with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.SUBSET_LIST), 'r') as file:
+            self.image_list = [l.strip() for l in file]
+
+        # Read annotations
+        with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.PANOPTIC_ANNOTATION_FILE), 'r') as file:
+            self.ann_data = json.load(file)
+
+            self.annotations = {osp.splitext(an['file_name'])[0]: an for an in self.ann_data['annotations']}
+            self.categories = self.ann_data['categories']
+
+        self.pq = PM.PQ(self.categories, cfg)
+
+    def evaluate_image(self, pan_pred, pan_gt, ann_gt):
+        """Evaluates a single image
+
+        Args:
+            pan_pred (np.array): Predicted panoptic mask.
+            pan_gt (np.array): GT panoptic mask.
+            ann_gt (dict): GT annotations for the image.
+        """
+
+        H,W = pan_gt.shape
+        # 1. Resize predicted mask
+        pan_pred = np.array(Image.fromarray(pan_pred).resize((W, H), Image.NEAREST))
+
+        # 2. Evaluate panoptic quality
+        frame_summary, overall_summary = self.pq.compute(pan_pred, pan_gt, ann_gt)
+
+        return frame_summary, overall_summary
+
+    def evaluate(self, method_name):
+        preds_dir = os.path.join(self.cfg.PATHS.PREDICTIONS, method_name)
+        pan_gt_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.PANOPTIC_MASK_SUBDIR)
+
+        frame_results = []
+        with tqdm(desc=method_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
+            for img_name in self.image_list:
+                # Read panoptic predictions
+                pred_pan = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
+
+                # Read GT
+                pan_gt = np.array(Image.open(os.path.join(pan_gt_dir, '%s.png' % img_name)))
+                ann_gt = self.annotations[img_name]
+
+                frame_summary, overall_summary = self.evaluate_image(pred_pan, pan_gt, ann_gt)
+                frame_summary['image'] = img_name
+                frame_results.append(frame_summary)
+
+                log_dict = {m:overall_summary[m] for m in self.cfg.PROGRESS.METRICS}
+
+                pbar.set_postfix(**log_dict)
+                pbar.update()
+
+
+        # Store results (overall and per frame)
+        frame_results_df = pd.DataFrame(frame_results).set_index('image')
+        overall_summary = self.pq.summary()
 
         if not osp.exists(self.cfg.PATHS.RESULTS):
             os.makedirs(self.cfg.PATHS.RESULTS)
