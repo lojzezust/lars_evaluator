@@ -9,7 +9,7 @@ import evaluator.context as ctx
 
 import evaluator.metrics as M
 
-class Evaluator():
+class SemanticEvaluator():
 
     def __init__(self, cfg):
         self.cfg = cfg

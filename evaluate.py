@@ -2,7 +2,7 @@ from PIL import Image
 import numpy as np
 import argparse
 
-from evaluator import Evaluator
+from evaluator import SemanticEvaluator
 from evaluator.config import get_cfg
 from multiprocessing import Pool
 from evaluator.utils import TqdmPool
@@ -24,7 +24,7 @@ def main():
 
     cfg = get_cfg(args.config)
 
-    evaluator = Evaluator(cfg)
+    evaluator = SemanticEvaluator(cfg)
 
     if len(args.methods) > 1:
         with TqdmPool(WORKERS) as pool:
