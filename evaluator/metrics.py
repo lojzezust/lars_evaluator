@@ -2,6 +2,7 @@
 
 import numpy as np
 import cv2
+from panopticapi.utils import rgb2id
 
 class Metric():
     def compute(self, mask_pred, mask_gt, **kwargs):
@@ -15,9 +16,9 @@ class Metric():
 
 class IoU(Metric):
     def __init__(self, cfg):
-        self.classes = cfg.CLASSES.IDS
-        self.class_names = cfg.CLASSES.NAMES
-        self.ignore_idx = cfg.CLASSES.IGNORE_ID
+        self.classes = cfg.SEGMENTATION.IDS
+        self.class_names = cfg.SEGMENTATION.NAMES
+        self.ignore_idx = cfg.SEGMENTATION.IGNORE_ID
 
         self.reset()
 
@@ -26,11 +27,11 @@ class IoU(Metric):
         self._total_union = {cls_i: 0 for cls_i in self.classes}
         self._total_intersection = {cls_i: 0 for cls_i in self.classes}
 
-    def compute(self, mask_pred, mask_gt):
+    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan):
         frame_summary = {}
         for i,cls_i in enumerate(self.classes):
-            cls_pred = (mask_pred == cls_i) & (mask_gt != self.ignore_idx)
-            cls_gt = mask_gt == cls_i
+            cls_pred = (mask_pred == cls_i) & (gt_sem != self.ignore_idx)
+            cls_gt = gt_sem == cls_i
 
             intersection = np.bitwise_and(cls_pred, cls_gt).sum()
             union = np.bitwise_or(cls_pred, cls_gt).sum()
@@ -69,10 +70,10 @@ def erode_mask(mask, ksize=3, it=1):
 
 class MaritimeMetrics(Metric):
     def __init__(self, cfg):
-        self.obstacle_class = cfg.CLASSES.OBSTACLE_CLASS
-        self.water_class = cfg.CLASSES.WATER_CLASS
-        self.sky_class = cfg.CLASSES.SKY_CLASS
-        self.ignore_idx = cfg.CLASSES.IGNORE_ID
+        self.obstacle_class = cfg.SEGMENTATION.OBSTACLE_CLASS
+        self.water_class = cfg.SEGMENTATION.WATER_CLASS
+        self.sky_class = cfg.SEGMENTATION.SKY_CLASS
+        self.ignore_idx = cfg.SEGMENTATION.IGNORE_ID
 
         self.cfg = cfg
 
@@ -90,44 +91,47 @@ class MaritimeMetrics(Metric):
         self._water_fp_area = 0
         self._water_total = 0
 
-    def compute(self, mask_pred, mask_gt, mask_inst):
-        # 1.1 Get water-edge area mask
-        water_mask = (mask_gt == self.water_class).astype(np.uint8)
-        obstacle_mask = (mask_gt == self.obstacle_class).astype(np.uint8) # TODO: only static obstacles
-        obstacle_mask = obstacle_mask & ~(mask_inst > 0)
+    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan):
+        # Get water-edge area mask
+        water_mask = (gt_sem == self.water_class).astype(np.uint8) # Water mask
+        obstacle_mask = (gt_pan[...,0] == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS).astype(np.uint8) # Static obstacles mask
 
-        obst_d = dilate_mask(obstacle_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
-        water_d = dilate_mask(water_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
-        we_mask = obst_d & water_d # TODO: ignore regions
-
-        # 1.2 Update WE metric(s)
-        we_area = we_mask.sum()
-        we_correct = np.sum((mask_gt == mask_pred) * we_mask)
-        self._we_total_area += we_area
-        self._we_total_correct += we_correct
-
-        # 2. Dynamic obstacles recall
+        # 1. Dynamic obstacles recall
         valid_preds = (mask_pred == self.obstacle_class).astype(np.uint8)
         valid_preds = valid_preds & ~obstacle_mask # Remove static obstacles from predictions
-        dyn_obst_mask_d = np.zeros_like(valid_preds)
+        dyn_obst_anns = [ann for ann in ann_pan['segments_info'] if ann['category_id'] in self.cfg.PANOPTIC.DYN_OBST_IDS]
+        gt_pan_ids = rgb2id(gt_pan)
 
+        dyn_obst_mask_d = np.zeros_like(valid_preds)
         num_tp = 0
         num_fn = 0
-        for obst_i in np.unique(mask_inst):
-            if obst_i==0: continue
-
-            obst_mask = (mask_inst == obst_i).astype(np.uint8)
+        for obst_ann in dyn_obst_anns:
+            obst_mask = (gt_pan_ids == obst_ann['id']).astype(np.uint8)
             obst_mask_d = dilate_mask(obst_mask, self.cfg.EVALUATION.SMALL_OBJECT_DILATION)
             dyn_obst_mask_d |= obst_mask_d
             pred_area = np.sum(valid_preds & obst_mask_d)
             total_area = np.sum(obst_mask)
 
-            if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area:
+            if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area: # TODO: IoU instead of coverage?
                 self._dyobs_tp += 1
                 num_tp += 1
             else:
                 self._dyobs_fn += 1
                 num_fn += 1
+
+
+        # 2. Water-edge boundary accuracy
+        # Get common boundary by dilation
+        obst_d = dilate_mask(obstacle_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
+        water_d = dilate_mask(water_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
+        we_mask = obst_d & water_d # TODO: ignore regions
+        we_mask = we_mask & ~dyn_obst_mask_d # Do not evaluate close to dynamic obstacles
+
+        # 2.2 Update WE metric(s)
+        we_area = we_mask.sum()
+        we_correct = np.sum((gt_sem == mask_pred) * we_mask)
+        self._we_total_area += we_area
+        self._we_total_correct += we_correct
 
 
         # 3. False positive detections

@@ -1,2 +1,2 @@
 
-from .evaluator import Evaluator
+from .evaluator import SemanticEvaluator

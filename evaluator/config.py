@@ -6,21 +6,27 @@ _C = CN()
 # Dataset configuration
 _C.DATASET = CN()
 _C.DATASET.IMAGE_SUBDIR  = "images"
-_C.DATASET.GT_MASK_SUBDIR  = "masks"
-_C.DATASET.INST_MASK_SUBDIR  = "instances"
-_C.DATASET.SUBSET_LIST = "list_test.txt"
+_C.DATASET.SEMANTIC_MASK_SUBDIR  = "semantic_masks"
+_C.DATASET.PANOPTIC_MASK_SUBDIR  = "panoptic_masks"
+_C.DATASET.PANOPTIC_ANN_FILE  = "panoptic_annotations.json"
+_C.DATASET.SUBSET_LIST = "image_list.txt"
 
-# Class configuration
-_C.CLASSES = CN()
-_C.CLASSES.IDS = [0,1,2]
-_C.CLASSES.IGNORE_ID = 4
-_C.CLASSES.NAMES = ['obstacle', 'water', 'sky']
-_C.CLASSES.OBSTACLE_CLASS = 0
-_C.CLASSES.WATER_CLASS = 1
-_C.CLASSES.SKY_CLASS = 2
-_C.CLASSES.COLORS = [[247, 195,  37],  # Obstacles RGB color
-                     [ 41, 167, 224],  # Water RGB color
-                     [ 90,  75, 164]]  # Sky RGB color
+# Semantic segmentation: class configuration
+_C.SEGMENTATION = CN()
+_C.SEGMENTATION.IDS = [0,1,2]
+_C.SEGMENTATION.IGNORE_ID = 255
+_C.SEGMENTATION.NAMES = ['obstacle', 'water', 'sky']
+_C.SEGMENTATION.OBSTACLE_CLASS = 0
+_C.SEGMENTATION.WATER_CLASS = 1
+_C.SEGMENTATION.SKY_CLASS = 2
+_C.SEGMENTATION.COLORS = [[247, 195,  37],  # Obstacles RGB color
+                          [ 41, 167, 224],  # Water RGB color
+                          [ 90,  75, 164]]  # Sky RGB color
+
+# Panoptic segmentation: configuration
+_C.PANOPTIC = CN()
+_C.PANOPTIC.STATIC_OBSTACLE_CLASS = 1 # Class ID of static obstacles
+_C.PANOPTIC.DYN_OBST_IDS = [11,12,13,14,15,16,17,19] # IDs that count as dynamic obstacles
 
 # All Paths
 _C.PATHS = CN()
