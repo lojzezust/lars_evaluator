@@ -2,7 +2,7 @@ from PIL import Image
 import numpy as np
 import argparse
 
-from evaluator import SemanticEvaluator
+from evaluator import SemanticEvaluator, PanopticEvaluator
 from evaluator.config import get_cfg
 from multiprocessing import Pool
 from evaluator.utils import TqdmPool
@@ -24,7 +24,12 @@ def main():
 
     cfg = get_cfg(args.config)
 
-    evaluator = SemanticEvaluator(cfg)
+    if cfg.MODE == 'semantic':
+        evaluator = SemanticEvaluator(cfg)
+    elif cfg.MODE == 'panoptic':
+        evaluator = PanopticEvaluator(cfg)
+    else:
+        raise ValueError('Unknown mode: %s' % cfg.MODE)
 
     if len(args.methods) > 1:
         with TqdmPool(WORKERS) as pool:

@@ -1,2 +1,2 @@
 
-from .evaluator import SemanticEvaluator
+from .evaluator import SemanticEvaluator, PanopticEvaluator

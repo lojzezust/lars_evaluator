@@ -10,6 +10,20 @@ import evaluator.context as ctx
 import evaluator.metrics as M
 import evaluator.panoptic as PM
 
+
+def parse_annotations(json_data):
+    # Prepare a image_name -> annotation dictionary
+    id2img = {}
+    for img in json_data['images']:
+        id2img[img['id']] = osp.splitext(img['file_name'])[0]
+
+    annotations = {}
+    for ann in json_data['annotations']:
+        img_name = id2img[ann['image_id']]
+        annotations[img_name] = ann
+
+    return annotations
+
 class SemanticEvaluator():
 
     def __init__(self, cfg):
@@ -23,15 +37,7 @@ class SemanticEvaluator():
         with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.PANOPTIC_ANN_FILE), 'r') as file:
             data = json.load(file)
 
-        # Prepare a image_name -> annotation dictionary
-        id2img = {}
-        for img in data['images']:
-            id2img[img['id']] = osp.splitext(img['file_name'])[0]
-
-        self.annotations = {}
-        for ann in data['annotations']:
-            img_name = id2img[ann['image_id']]
-            self.annotations[img_name] = ann
+        self.annotations = parse_annotations(data)
 
         self.iou = M.IoU(cfg)
         self.maritime_metrics = M.MaritimeMetrics(cfg) # TODO: cfg class ids for water, ...
@@ -116,11 +122,11 @@ class PanopticEvaluator():
             self.image_list = [l.strip() for l in file]
 
         # Read annotations
-        with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.PANOPTIC_ANNOTATION_FILE), 'r') as file:
+        with open(os.path.join(cfg.PATHS.DATASET_ROOT, cfg.DATASET.PANOPTIC_ANN_FILE), 'r') as file:
             self.ann_data = json.load(file)
 
-            self.annotations = {osp.splitext(an['file_name'])[0]: an for an in self.ann_data['annotations']}
-            self.categories = self.ann_data['categories']
+            self.annotations = parse_annotations(self.ann_data)
+            self.categories = {c['id']: c for c in self.ann_data['categories']}
 
         self.pq = PM.PQ(self.categories, cfg)
 
@@ -133,7 +139,7 @@ class PanopticEvaluator():
             ann_gt (dict): GT annotations for the image.
         """
 
-        H,W = pan_gt.shape
+        H,W,_ = pan_gt.shape
         # 1. Resize predicted mask
         pan_pred = np.array(Image.fromarray(pan_pred).resize((W, H), Image.NEAREST))
 

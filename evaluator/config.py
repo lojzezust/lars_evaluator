@@ -3,6 +3,8 @@ from yacs.config import CfgNode as CN
 
 _C = CN()
 
+_C.MODE = "semantic"
+
 # Dataset configuration
 _C.DATASET = CN()
 _C.DATASET.IMAGE_SUBDIR  = "images"
@@ -25,6 +27,7 @@ _C.SEGMENTATION.COLORS = [[247, 195,  37],  # Obstacles RGB color
 
 # Panoptic segmentation: configuration
 _C.PANOPTIC = CN()
+_C.PANOPTIC.VOID_ID = 0 # Class ID for void predictions
 _C.PANOPTIC.STATIC_OBSTACLE_CLASS = 1 # Class ID of static obstacles
 _C.PANOPTIC.DYN_OBST_IDS = [11,12,13,14,15,16,17,19] # IDs that count as dynamic obstacles
 

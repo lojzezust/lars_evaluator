@@ -30,6 +30,7 @@ class PQ(PanopticMetric):
     def __init__(self, categories, cfg):
         # TODO: cfg for void, etc.
         self.categories = categories
+        self.cfg = cfg
 
 
         self._pq_stat = PQStat()
@@ -46,16 +47,19 @@ class PQ(PanopticMetric):
         labels, labels_cnt = np.unique(pan_pred_id, return_counts=True)
 
         # Generate segment info data
-        ann_pred = {}
+        ann_pred = []
         for label, label_cnt in zip(labels, labels_cnt):
-            # TODO: void! Ignore regions are treated as void?
             cat_preds = pan_pred_cls[pan_pred_id == label]
+            cat_id = np.unique(cat_preds)[0] # Most common predicted class of the segment
+            # Ignore void regions
+            if cat_id == self.cfg.PANOPTIC.VOID_ID:
+                continue
 
-            ann_pred[label] = {
+            ann_pred.append({
                 'id': label,
                 'area': label_cnt,
-                'category_id': np.unique(cat_preds)[0], # Most common predicted class of the segment
-            }
+                'category_id': cat_id
+            })
 
             # TODO: check if category_id is valid
 
@@ -92,6 +96,7 @@ class PQ(PanopticMetric):
                 'area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
             iou = intersection / union
             if iou > 0.5:
+                # TODO: class agnostic dynamic obstacles
                 self._pq_stat_frame[gt_segms[gt_label]['category_id']].tp += 1
                 self._pq_stat_frame[gt_segms[gt_label]['category_id']].iou += iou
                 gt_matched.add(gt_label)
@@ -114,7 +119,7 @@ class PQ(PanopticMetric):
             if pred_label in pred_matched:
                 continue
             # intersection of the segment with VOID
-            intersection = gt_pred_map.get((VOID, pred_label), 0)
+            intersection = gt_pred_map.get((self.cfg.PANOPTIC.VOID_ID, pred_label), 0)
             # plus intersection with corresponding CROWD region if it exists
             if pred_info['category_id'] in crowd_labels_dict:
                 intersection += gt_pred_map.get(
@@ -129,19 +134,22 @@ class PQ(PanopticMetric):
         # Update global count
         self._pq_stat += self._pq_stat_frame
 
+        frame_summary = self._get_summary(self._pq_stat_frame)
+        overall_summary = self.summary()
+        return frame_summary, overall_summary
+
 
     def summary(self):
-        frame_summary = self._get_summary(self._pq_stat_frame)
         overall_summary = self._get_summary(self._pq_stat)
 
-        return frame_summary, overall_summary
+        return overall_summary
 
     def _get_summary(self, pq_stat):
         metrics = [('All', None), ('Things', True), ('Stuff', False)]
         pq_results = {}
 
         for name, isthing in metrics:
-            pq_results[name], classwise_results = self._pq_stat.pq_average(
+            pq_results[name], classwise_results = pq_stat.pq_average(
                 self.categories, isthing=isthing)
             if name == 'All':
                 pq_results['classwise'] = classwise_results
