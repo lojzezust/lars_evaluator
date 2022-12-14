@@ -12,29 +12,36 @@ class PanopticMetric(Metric):
         pass
 
 
-def parse_pq_results(pq_results):
-    result = dict()
-    result['PQ'] = 100 * pq_results['All']['pq']
-    result['SQ'] = 100 * pq_results['All']['sq']
-    result['RQ'] = 100 * pq_results['All']['rq']
-    result['PQ_th'] = 100 * pq_results['Things']['pq']
-    result['SQ_th'] = 100 * pq_results['Things']['sq']
-    result['RQ_th'] = 100 * pq_results['Things']['rq']
-    result['PQ_st'] = 100 * pq_results['Stuff']['pq']
-    result['SQ_st'] = 100 * pq_results['Stuff']['sq']
-    result['RQ_st'] = 100 * pq_results['Stuff']['rq']
-
-    return result
-
 class PQ(PanopticMetric):
-    def __init__(self, categories, cfg):
+    def __init__(self, categories, cfg, class_agnostic=False, prefix=''):
         # TODO: cfg for void, etc.
         self.categories = categories
         self.cfg = cfg
+        self.class_agnostic = class_agnostic
+        self.prefix = prefix
 
+        if self.class_agnostic:
+            self.agnostic_id = 20 # TODO: config
+            self.class_agnostic_cat = {cid: cat for cid, cat in categories.items() if cat['isthing'] == 0}
+            self.class_agnostic_cat[self.agnostic_id] = {
+                'id': self.agnostic_id,
+                'name': 'Dynamic Obstacle',
+                'supercategory': 'obstacle',
+                'isthing': 1,
+                'color': [255, 39, 43]
+            }
 
         self._pq_stat = PQStat()
         self._pq_stat_frame = None
+
+    def _resolve_id(self, cat_id):
+        """Resolve category id (if agnostic group all thing IDs)."""
+        isthing = self.categories[cat_id]['isthing']
+
+        if self.class_agnostic and isthing:
+            cat_id = self.agnostic_id
+
+        return cat_id
 
     def compute(self, pan_pred, pan_gt, ann_gt, **kwargs):
         self._pq_stat_frame = PQStat()
@@ -88,8 +95,11 @@ class PQ(PanopticMetric):
                 continue
             if gt_segms[gt_label]['iscrowd'] == 1:
                 continue
-            if gt_segms[gt_label]['category_id'] != pred_segms[pred_label][
-                    'category_id']:
+
+            gt_cat_id = self._resolve_id(gt_segms[gt_label]['category_id'])
+            pred_cat_id = self._resolve_id(pred_segms[pred_label]['category_id'])
+
+            if gt_cat_id != pred_cat_id:
                 continue
 
             union = pred_segms[pred_label]['area'] + gt_segms[gt_label][
@@ -97,8 +107,8 @@ class PQ(PanopticMetric):
             iou = intersection / union
             if iou > 0.5:
                 # TODO: class agnostic dynamic obstacles
-                self._pq_stat_frame[gt_segms[gt_label]['category_id']].tp += 1
-                self._pq_stat_frame[gt_segms[gt_label]['category_id']].iou += iou
+                self._pq_stat_frame[gt_cat_id].tp += 1
+                self._pq_stat_frame[gt_cat_id].iou += iou
                 gt_matched.add(gt_label)
                 pred_matched.add(pred_label)
 
@@ -108,10 +118,11 @@ class PQ(PanopticMetric):
             if gt_label in gt_matched:
                 continue
             # crowd segments are ignored TODO: iscrowd annotations are different?
+            cat_id = self._resolve_id(gt_info['category_id'])
             if gt_info['iscrowd'] == 1:
-                crowd_labels_dict[gt_info['category_id']] = gt_label
+                crowd_labels_dict[cat_id] = gt_label
                 continue
-            self._pq_stat_frame[gt_info['category_id']].fn += 1
+            self._pq_stat_frame[cat_id].fn += 1
 
 
         # count false positives
@@ -121,15 +132,16 @@ class PQ(PanopticMetric):
             # intersection of the segment with VOID
             intersection = gt_pred_map.get((self.cfg.PANOPTIC.VOID_ID, pred_label), 0)
             # plus intersection with corresponding CROWD region if it exists
-            if pred_info['category_id'] in crowd_labels_dict:
+            cat_id = self._resolve_id(pred_info['category_id'])
+            if cat_id in crowd_labels_dict:
                 intersection += gt_pred_map.get(
-                    (crowd_labels_dict[pred_info['category_id']], pred_label),
+                    (crowd_labels_dict[cat_id], pred_label),
                     0)
             # predicted segment is ignored if more than half of
             # the segment correspond to VOID and CROWD regions
             if intersection / pred_info['area'] > 0.5:
                 continue
-            self._pq_stat_frame[pred_info['category_id']].fp += 1
+            self._pq_stat_frame[cat_id].fp += 1
 
         # Update global count
         self._pq_stat += self._pq_stat_frame
@@ -148,24 +160,28 @@ class PQ(PanopticMetric):
         metrics = [('All', None), ('Things', True), ('Stuff', False)]
         pq_results = {}
 
+        categories = self.categories
+        if self.class_agnostic:
+            categories = self.class_agnostic_cat
+
         for name, isthing in metrics:
             pq_results[name], classwise_results = pq_stat.pq_average(
-                self.categories, isthing=isthing)
+                categories, isthing=isthing)
             if name == 'All':
                 pq_results['classwise'] = classwise_results
 
         # TODO: classwise results?
 
         result = dict()
-        result['PQ'] = 100 * pq_results['All']['pq']
-        result['SQ'] = 100 * pq_results['All']['sq']
-        result['RQ'] = 100 * pq_results['All']['rq']
-        result['PQ_th'] = 100 * pq_results['Things']['pq']
-        result['SQ_th'] = 100 * pq_results['Things']['sq']
-        result['RQ_th'] = 100 * pq_results['Things']['rq']
-        result['PQ_st'] = 100 * pq_results['Stuff']['pq']
-        result['SQ_st'] = 100 * pq_results['Stuff']['sq']
-        result['RQ_st'] = 100 * pq_results['Stuff']['rq']
+        result[self.prefix + 'PQ'] = 100 * pq_results['All']['pq']
+        result[self.prefix + 'SQ'] = 100 * pq_results['All']['sq']
+        result[self.prefix + 'RQ'] = 100 * pq_results['All']['rq']
+        result[self.prefix + 'PQ_th'] = 100 * pq_results['Things']['pq']
+        result[self.prefix + 'SQ_th'] = 100 * pq_results['Things']['sq']
+        result[self.prefix + 'RQ_th'] = 100 * pq_results['Things']['rq']
+        result[self.prefix + 'PQ_st'] = 100 * pq_results['Stuff']['pq']
+        result[self.prefix + 'SQ_st'] = 100 * pq_results['Stuff']['sq']
+        result[self.prefix + 'RQ_st'] = 100 * pq_results['Stuff']['rq']
 
         return result
 

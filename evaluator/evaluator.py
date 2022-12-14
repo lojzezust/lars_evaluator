@@ -129,6 +129,7 @@ class PanopticEvaluator():
             self.categories = {c['id']: c for c in self.ann_data['categories']}
 
         self.pq = PM.PQ(self.categories, cfg)
+        self.pq_agnostic = PM.PQ(self.categories, cfg, class_agnostic=True, prefix='a')
 
     def evaluate_image(self, pan_pred, pan_gt, ann_gt):
         """Evaluates a single image
@@ -145,6 +146,10 @@ class PanopticEvaluator():
 
         # 2. Evaluate panoptic quality
         frame_summary, overall_summary = self.pq.compute(pan_pred, pan_gt, ann_gt)
+        a_frame_summary, a_overall_summary = self.pq_agnostic.compute(pan_pred, pan_gt, ann_gt)
+
+        frame_summary.update(a_frame_summary)
+        overall_summary.update(a_overall_summary)
 
         return frame_summary, overall_summary
 
@@ -175,6 +180,7 @@ class PanopticEvaluator():
         # Store results (overall and per frame)
         frame_results_df = pd.DataFrame(frame_results).set_index('image')
         overall_summary = self.pq.summary()
+        overall_summary.update(self.pq_agnostic.summary())
 
         if not osp.exists(self.cfg.PATHS.RESULTS):
             os.makedirs(self.cfg.PATHS.RESULTS)
@@ -182,3 +188,5 @@ class PanopticEvaluator():
         frame_results_df.to_csv(osp.join(self.cfg.PATHS.RESULTS, '%s_frames.csv' % method_name))
         with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
             json.dump(overall_summary, file, indent=2)
+
+        return overall_summary
