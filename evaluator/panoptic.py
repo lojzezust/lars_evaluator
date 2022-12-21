@@ -4,6 +4,7 @@ import numpy as np
 from panopticapi.evaluation import OFFSET, VOID, PQStat
 from panopticapi.utils import rgb2id
 import pandas as pd
+import json
 
 from evaluator.metrics import Metric
 
@@ -35,6 +36,7 @@ class PQ(PanopticMetric):
         self._pq_stat = PQStat()
         self._pq_stat_frame = None
         self._matched_segments = []
+        self._frame_data = []
 
     def _resolve_id(self, cat_id):
         """Resolve category id (if agnostic group all thing IDs)."""
@@ -45,7 +47,7 @@ class PQ(PanopticMetric):
 
         return cat_id
 
-    def compute(self, pan_pred, pan_gt, ann_gt, **kwargs):
+    def compute(self, pan_pred, pan_gt, ann_gt, image_name, **kwargs):
         self._pq_stat_frame = PQStat()
 
         # Convert predictions into individual components
@@ -72,6 +74,7 @@ class PQ(PanopticMetric):
 
             # TODO: check if category_id is valid
 
+
         # Convert GT
         pan_gt_id = rgb2id(pan_gt)
         gt_segms = {el['id']: el for el in ann_gt['segments_info']}
@@ -86,7 +89,9 @@ class PQ(PanopticMetric):
             pred_id = label % OFFSET
             gt_pred_map[(gt_id, pred_id)] = intersection
 
+
         # count all matched pairs (true positives)
+        segment_data = []
         gt_matched = set()
         pred_matched = set()
         for label_tuple, intersection in gt_pred_map.items():
@@ -117,6 +122,17 @@ class PQ(PanopticMetric):
                 gt_matched.add(gt_label)
                 pred_matched.add(pred_label)
 
+                # Store segment match info
+                segment_data.append(dict(
+                    type='TP',
+                    gt_label=int(gt_label),
+                    pred_label=int(pred_label),
+                    iou=iou,
+                    category_id=int(gt_cat_id),
+                    gt_area=int(gt_segms[gt_label]['area']),
+                    pred_area=int(pred_segms[pred_label]['area'])
+                ))
+
         # count false negatives
         crowd_labels_dict = {}
         for gt_label, gt_info in gt_segms.items():
@@ -128,6 +144,14 @@ class PQ(PanopticMetric):
                 crowd_labels_dict[cat_id] = gt_label
                 continue
             self._pq_stat_frame[cat_id].fn += 1
+
+            # Store segment match info
+            segment_data.append(dict(
+                type='FN',
+                gt_label=int(gt_label),
+                category_id=int(cat_id),
+                gt_area=int(gt_info['area'])
+            ))
 
 
         # count false positives
@@ -148,11 +172,26 @@ class PQ(PanopticMetric):
                 continue
             self._pq_stat_frame[cat_id].fp += 1
 
+            # Store segment match info
+            segment_data.append(dict(
+                type='FP',
+                pred_label=int(pred_label),
+                category_id=int(cat_id),
+                pred_area=int(pred_info['area'])
+            ))
+
         # Update global count
         self._pq_stat += self._pq_stat_frame
 
         frame_summary = self._get_summary(self._pq_stat_frame)
         overall_summary = self.summary()
+
+        # Frame data
+        self._frame_data.append(dict(
+            image_name=image_name,
+            segment_data=segment_data
+        ))
+
         return frame_summary, overall_summary
 
 
@@ -195,7 +234,13 @@ class PQ(PanopticMetric):
         df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt'])
         df.to_csv(os.path.join(path, method_name + '_obst_cls.csv'), index=False)
 
+        # Save segments data
+        data = {'frames': self._frame_data}
+        with open(os.path.join(path, method_name + '_segments.json'), 'w') as file:
+            json.dump(data, file, indent=2)
+
     def reset(self):
         self._pq_stat = PQStat()
         self._pq_stat_frame = PQStat()
         self._matched_segments = []
+        self._frame_data = []

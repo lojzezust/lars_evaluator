@@ -42,7 +42,7 @@ class SemanticEvaluator():
         self.iou = M.IoU(cfg)
         self.maritime_metrics = M.MaritimeMetrics(cfg)
 
-    def evaluate_image(self, mask_pred, seg_mask, pan_mask, pan_ann):
+    def evaluate_image(self, mask_pred, seg_mask, pan_mask, pan_ann, image_name):
         """Evaluates a single image
 
         Args:
@@ -50,16 +50,17 @@ class SemanticEvaluator():
             seg_mask (np.array): GT segmentation mask.
             pan_mask (np.array): GT panoptic mask.
             pan_ann (list): GT panoptic annotations (COCO format).
+            image_name (str): Name of the evaluated image (filename without extension).
         """
         H,W = seg_mask.shape
         # 1. Resize predicted mask
         mask_pred = np.array(Image.fromarray(mask_pred).resize((W, H), Image.NEAREST))
 
         # 2. Evaluate IoU
-        frame_summary, overall_summary = self.iou.compute(mask_pred, seg_mask, pan_mask, pan_ann)
+        frame_summary, overall_summary = self.iou.compute(mask_pred, seg_mask, pan_mask, pan_ann, image_name)
 
         # 3. Evaluate maritime metrics (WE, obst. detection and FPs)
-        frame_summary_mar, overall_summary_mar = self.maritime_metrics.compute(mask_pred, seg_mask, pan_mask, pan_ann)
+        frame_summary_mar, overall_summary_mar = self.maritime_metrics.compute(mask_pred, seg_mask, pan_mask, pan_ann, image_name)
 
         frame_summary.update(frame_summary_mar)
         overall_summary.update(overall_summary_mar)
@@ -87,7 +88,7 @@ class SemanticEvaluator():
                 mask_pan = np.array(Image.open(os.path.join(pan_dir, '%s.png' % img_name)))
                 ann_pan = self.annotations[img_name]
 
-                frame_summary, overall_summary = self.evaluate_image(mask_pred, mask_sem, mask_pan, ann_pan)
+                frame_summary, overall_summary = self.evaluate_image(mask_pred, mask_sem, mask_pan, ann_pan, img_name)
                 frame_summary['image'] = img_name
                 frame_results.append(frame_summary)
 
@@ -131,13 +132,14 @@ class PanopticEvaluator():
         self.pq = PM.PQ(self.categories, cfg)
         self.pq_agnostic = PM.PQ(self.categories, cfg, class_agnostic=True, prefix='a')
 
-    def evaluate_image(self, pan_pred, pan_gt, ann_gt):
+    def evaluate_image(self, pan_pred, pan_gt, ann_gt, image_name):
         """Evaluates a single image
 
         Args:
             pan_pred (np.array): Predicted panoptic mask.
             pan_gt (np.array): GT panoptic mask.
             ann_gt (dict): GT annotations for the image.
+            image_name (str): Name of the evaluated image (filename without extension).
         """
 
         H,W,_ = pan_gt.shape
@@ -145,8 +147,8 @@ class PanopticEvaluator():
         pan_pred = np.array(Image.fromarray(pan_pred).resize((W, H), Image.NEAREST))
 
         # 2. Evaluate panoptic quality
-        frame_summary, overall_summary = self.pq.compute(pan_pred, pan_gt, ann_gt)
-        a_frame_summary, a_overall_summary = self.pq_agnostic.compute(pan_pred, pan_gt, ann_gt)
+        frame_summary, overall_summary = self.pq.compute(pan_pred, pan_gt, ann_gt, image_name)
+        a_frame_summary, a_overall_summary = self.pq_agnostic.compute(pan_pred, pan_gt, ann_gt, image_name)
 
         frame_summary.update(a_frame_summary)
         overall_summary.update(a_overall_summary)
@@ -167,7 +169,7 @@ class PanopticEvaluator():
                 pan_gt = np.array(Image.open(os.path.join(pan_gt_dir, '%s.png' % img_name)))
                 ann_gt = self.annotations[img_name]
 
-                frame_summary, overall_summary = self.evaluate_image(pred_pan, pan_gt, ann_gt)
+                frame_summary, overall_summary = self.evaluate_image(pred_pan, pan_gt, ann_gt, img_name)
                 frame_summary['image'] = img_name
                 frame_results.append(frame_summary)
 

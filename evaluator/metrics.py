@@ -30,7 +30,7 @@ class IoU(Metric):
         self._total_union = {cls_i: 0 for cls_i in self.classes}
         self._total_intersection = {cls_i: 0 for cls_i in self.classes}
 
-    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan):
+    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan, image_name):
         frame_summary = {}
         for i,cls_i in enumerate(self.classes):
             cls_pred = (mask_pred == cls_i) & (gt_sem != self.ignore_idx)
@@ -96,7 +96,7 @@ class MaritimeMetrics(Metric):
         self._water_fp_area = 0
         self._water_total = 0
 
-    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan):
+    def compute(self, mask_pred, gt_sem, gt_pan, ann_pan, image_name):
         # Get water-edge area mask
         water_mask = (gt_sem == self.water_class).astype(np.uint8) # Water mask
         obstacle_mask = (gt_pan[...,0] == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS).astype(np.uint8) # Static obstacles mask
