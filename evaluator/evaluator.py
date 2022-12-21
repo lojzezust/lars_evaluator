@@ -189,4 +189,7 @@ class PanopticEvaluator():
         with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
             json.dump(overall_summary, file, indent=2)
 
+        # Store extras
+        self.pq.save_extras(self.cfg.PATHS.RESULTS, method_name)
+
         return overall_summary

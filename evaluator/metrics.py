@@ -14,6 +14,9 @@ class Metric():
     def reset(self):
         pass
 
+    def save_extras(self, path, method_name):
+        pass
+
 class IoU(Metric):
     def __init__(self, cfg):
         self.classes = cfg.SEGMENTATION.IDS

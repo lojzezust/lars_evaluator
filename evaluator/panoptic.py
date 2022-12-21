@@ -3,6 +3,7 @@ import os
 import numpy as np
 from panopticapi.evaluation import OFFSET, VOID, PQStat
 from panopticapi.utils import rgb2id
+import pandas as pd
 
 from evaluator.metrics import Metric
 
@@ -33,6 +34,7 @@ class PQ(PanopticMetric):
 
         self._pq_stat = PQStat()
         self._pq_stat_frame = None
+        self._matched_segments = []
 
     def _resolve_id(self, cat_id):
         """Resolve category id (if agnostic group all thing IDs)."""
@@ -98,6 +100,9 @@ class PQ(PanopticMetric):
 
             gt_cat_id = self._resolve_id(gt_segms[gt_label]['category_id'])
             pred_cat_id = self._resolve_id(pred_segms[pred_label]['category_id'])
+
+            # Store matched segment category ids (for confusion_matrix)
+            self._matched_segments.append((pred_cat_id, gt_cat_id))
 
             if gt_cat_id != pred_cat_id:
                 continue
@@ -185,5 +190,12 @@ class PQ(PanopticMetric):
 
         return result
 
+    def save_extras(self, path, method_name):
+        # Save matched category pairs
+        df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt'])
+        df.to_csv(os.path.join(path, method_name + '_obst_cls.csv'), index=False)
+
     def reset(self):
         self._pq_stat = PQStat()
+        self._pq_stat_frame = PQStat()
+        self._matched_segments = []
