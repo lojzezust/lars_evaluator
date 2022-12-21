@@ -40,7 +40,7 @@ class SemanticEvaluator():
         self.annotations = parse_annotations(data)
 
         self.iou = M.IoU(cfg)
-        self.maritime_metrics = M.MaritimeMetrics(cfg) # TODO: cfg class ids for water, ...
+        self.maritime_metrics = M.MaritimeMetrics(cfg)
 
     def evaluate_image(self, mask_pred, seg_mask, pan_mask, pan_ann):
         """Evaluates a single image

@@ -83,6 +83,8 @@ class MaritimeMetrics(Metric):
         # Metric counters
         self._we_total_correct = 0
         self._we_total_area = 0
+        self._we_total_intersection = 0
+        self._we_total_union = 0
 
         self._dyobs_tp = 0
         self._dyobs_fn = 0
@@ -122,16 +124,32 @@ class MaritimeMetrics(Metric):
 
         # 2. Water-edge boundary accuracy
         # Get common boundary by dilation
+        wo_union = obstacle_mask | water_mask
         obst_d = dilate_mask(obstacle_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
         water_d = dilate_mask(water_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
-        we_mask = obst_d & water_d # TODO: ignore regions
+        we_mask = obst_d & water_d & wo_union # Get border areas
         we_mask = we_mask & ~dyn_obst_mask_d # Do not evaluate close to dynamic obstacles
 
         # 2.2 Update WE metric(s)
+        # Accuracy inside boundary region
         we_area = we_mask.sum()
         we_correct = np.sum((gt_sem == mask_pred) * we_mask)
         self._we_total_area += we_area
         self._we_total_correct += we_correct
+
+        # Boundary IoU (symmetric, range 0-1)
+        gt_o = (gt_sem == self.obstacle_class).astype(np.uint8)
+        pred_o = (mask_pred == self.obstacle_class).astype(np.uint8)
+        gt_w = (gt_sem == self.water_class).astype(np.uint8)
+        pred_w = (mask_pred == self.water_class).astype(np.uint8)
+        i_o = np.sum((gt_o & pred_o) & we_mask)
+        i_w = np.sum((gt_w & pred_w) & we_mask)
+        min_i, max_i = min(i_o, i_w), max(i_o, i_w)
+
+        we_intersection = min_i
+        we_union = we_area - max_i
+        self._we_total_intersection += we_intersection
+        self._we_total_union += we_union
 
 
         # 3. False positive detections
@@ -150,6 +168,7 @@ class MaritimeMetrics(Metric):
         # Metrics of the current frame
         frame_summary = {
             'WE_acc': we_correct / we_area if we_area > 0 else 1.,
+            'WE_IoU': we_intersection / we_union if we_union > 0 else 1.,
             'TP': num_tp,
             'FN': num_fn,
             'FP': num_fp,
@@ -164,6 +183,7 @@ class MaritimeMetrics(Metric):
         re = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn)
         results = {
             'WE_acc': self._we_total_correct / self._we_total_area,
+            'WE_IoU': self._we_total_intersection / self._we_total_union,
             'TP': self._dyobs_tp,
             'FN': self._dyobs_fn,
             'FP': self._dyobs_fp,
