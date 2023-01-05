@@ -79,6 +79,7 @@ class PQ(PanopticMetric):
         pan_gt_id = rgb2id(pan_gt)
         gt_segms = {el['id']: el for el in ann_gt['segments_info']}
         pred_segms = {el['id']: el for el in ann_pred}
+        gt_segm_matches = {}
 
         # Find segment matches
         pan_gt_pred = pan_gt_id.astype(np.uint64) * OFFSET + pan_pred_id.astype(np.uint64)
@@ -88,6 +89,35 @@ class PQ(PanopticMetric):
             gt_id = label // OFFSET
             pred_id = label % OFFSET
             gt_pred_map[(gt_id, pred_id)] = intersection
+
+            # For each GT segment store segment with max intersection
+            if gt_id not in gt_segm_matches:
+                gt_segm_matches[gt_id] = (0, None)
+
+            if intersection > gt_segm_matches[gt_id][0]:
+                gt_segm_matches[gt_id] = (intersection, pred_id)
+
+
+        # Store matched segment category ids (for confusion_matrix)
+        for gt_id in gt_segm_matches:
+            intersection, pred_id = gt_segm_matches[gt_id]
+
+            if gt_id not in gt_segms:
+                continue
+            gt_cat_id = self._resolve_id(gt_segms[gt_id]['category_id'])
+
+            if pred_id == 0.0:
+                self._matched_segments.append((-1, gt_cat_id, None))
+                continue
+
+            pred_cat_id = self._resolve_id(pred_segms[pred_id]['category_id'])
+
+            union = pred_segms[pred_id]['area'] + gt_segms[gt_id][
+                'area'] - intersection - gt_pred_map.get((VOID, pred_id), 0)
+            iou = intersection / union
+
+
+            self._matched_segments.append((pred_cat_id, gt_cat_id, iou))
 
 
         # count all matched pairs (true positives)
@@ -105,9 +135,6 @@ class PQ(PanopticMetric):
 
             gt_cat_id = self._resolve_id(gt_segms[gt_label]['category_id'])
             pred_cat_id = self._resolve_id(pred_segms[pred_label]['category_id'])
-
-            # Store matched segment category ids (for confusion_matrix)
-            self._matched_segments.append((pred_cat_id, gt_cat_id))
 
             if gt_cat_id != pred_cat_id:
                 continue
@@ -231,7 +258,7 @@ class PQ(PanopticMetric):
 
     def save_extras(self, path, method_name):
         # Save matched category pairs
-        df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt'])
+        df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt', 'iou'])
         df.to_csv(os.path.join(path, method_name + '_obst_cls.csv'), index=False)
 
         # Save segments data

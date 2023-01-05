@@ -1,6 +1,7 @@
 # Project
 /venv/
 /results/
+/results_panoptic/
 
 # Python
 __pycache__/
