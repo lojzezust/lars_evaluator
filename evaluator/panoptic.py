@@ -60,6 +60,10 @@ class PQ(PanopticMetric):
     def compute(self, pan_pred, pan_gt, ann_gt, image_name, **kwargs):
         self._pq_stat_frame = PQStat()
 
+        categories = self.categories
+        if self.class_agnostic:
+            categories = self.class_agnostic_cat
+
         # Convert predictions into individual components
         pan_pred_id = rgb2id(pan_pred) # Segment IDs
         pan_pred_cls = pan_pred[..., 0] # Class IDs
@@ -154,7 +158,6 @@ class PQ(PanopticMetric):
                 'area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
             iou = intersection / union
             if iou > 0.5:
-                # TODO: class agnostic dynamic obstacles
                 self._pq_stat_frame[gt_cat_id].tp += 1
                 self._pq_stat_frame[gt_cat_id].iou += iou
                 gt_matched.add(gt_label)
@@ -175,14 +178,22 @@ class PQ(PanopticMetric):
 
         # count false negatives
         crowd_labels_dict = {}
+        static_obst_lbl = None
         for gt_label, gt_info in gt_segms.items():
+            cat_id = self._resolve_id(gt_info['category_id'])
+            # Store static obstacle panoptic label
+            if cat_id == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS:
+                static_obst_lbl = gt_label
+
             if gt_label in gt_matched:
                 continue
-            # crowd segments are ignored TODO: iscrowd annotations are different?
-            cat_id = self._resolve_id(gt_info['category_id'])
+
+            # Ignore crowd segments for FNs and store their ids
             if gt_info['iscrowd'] == 1:
+                # TODO: still count crowd segments as FN if classified as water?
                 crowd_labels_dict[cat_id] = gt_label
                 continue
+
             self._pq_stat_frame[cat_id].fn += 1
 
             # Store segment match info
@@ -205,12 +216,20 @@ class PQ(PanopticMetric):
             cat_id = self._resolve_id(pred_info['category_id'])
             if cat_id in crowd_labels_dict:
                 intersection += gt_pred_map.get(
-                    (crowd_labels_dict[cat_id], pred_label),
-                    0)
+                    (crowd_labels_dict[cat_id], pred_label), 0)
+
+            # if thing: plus intersection with static obstacle region
+            if categories[cat_id]['isthing'] == 1:
+                intersection += gt_pred_map.get(
+                    (static_obst_lbl, pred_label), 0)
+
             # predicted segment is ignored if more than half of
             # the segment correspond to VOID and CROWD regions
+            # Predicted obstacles are also ignored if more than half of
+            # the segment corresponds to STATIC OBSTACLES
             if intersection / pred_info['area'] > 0.5:
                 continue
+
             self._pq_stat_frame[cat_id].fp += 1
 
             # Store segment match info
