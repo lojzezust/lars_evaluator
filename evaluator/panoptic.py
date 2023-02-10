@@ -14,6 +14,16 @@ class PanopticMetric(Metric):
         pass
 
 
+def _get_bbox(mask):
+    """Computes the bounds of the mask."""
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    ymin, ymax = np.where(rows)[0][[0, -1]]
+    xmin, xmax = np.where(cols)[0][[0, -1]]
+
+    bbox = int(xmin), int(ymin), int(xmax-xmin) + 1, int(ymax-ymin) + 1
+    return bbox
+
 class PQ(PanopticMetric):
     def __init__(self, categories, cfg, class_agnostic=False, prefix=''):
         # TODO: cfg for void, etc.
@@ -69,7 +79,8 @@ class PQ(PanopticMetric):
             ann_pred.append({
                 'id': label,
                 'area': label_cnt,
-                'category_id': cat_id
+                'category_id': cat_id,
+                'bbox': _get_bbox(pan_pred_id == label)
             })
 
             # TODO: check if category_id is valid
@@ -157,7 +168,9 @@ class PQ(PanopticMetric):
                     iou=iou,
                     category_id=int(gt_cat_id),
                     gt_area=int(gt_segms[gt_label]['area']),
-                    pred_area=int(pred_segms[pred_label]['area'])
+                    pred_area=int(pred_segms[pred_label]['area']),
+                    gt_bbox=gt_segms[gt_label]['bbox'],
+                    pred_bbox=pred_segms[pred_label]['bbox']
                 ))
 
         # count false negatives
@@ -177,7 +190,8 @@ class PQ(PanopticMetric):
                 type='FN',
                 gt_label=int(gt_label),
                 category_id=int(cat_id),
-                gt_area=int(gt_info['area'])
+                gt_area=int(gt_info['area']),
+                gt_bbox=gt_info['bbox'],
             ))
 
 
@@ -204,7 +218,8 @@ class PQ(PanopticMetric):
                 type='FP',
                 pred_label=int(pred_label),
                 category_id=int(cat_id),
-                pred_area=int(pred_info['area'])
+                pred_area=int(pred_info['area']),
+                pred_bbox=pred_info['bbox']
             ))
 
         # Update global count
@@ -256,14 +271,14 @@ class PQ(PanopticMetric):
 
         return result
 
-    def save_extras(self, path, method_name):
+    def save_extras(self, path, method_name, postfix=''):
         # Save matched category pairs
         df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt', 'iou'])
-        df.to_csv(os.path.join(path, method_name + '_obst_cls.csv'), index=False)
+        df.to_csv(os.path.join(path, method_name + '_obst_cls%s.csv' % postfix), index=False)
 
         # Save segments data
         data = {'frames': self._frame_data}
-        with open(os.path.join(path, method_name + '_segments.json'), 'w') as file:
+        with open(os.path.join(path, method_name + '_segments%s.json' % postfix), 'w') as file:
             json.dump(data, file, indent=2)
 
     def reset(self):

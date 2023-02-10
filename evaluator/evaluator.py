@@ -110,6 +110,9 @@ class SemanticEvaluator():
         with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
             json.dump(overall_summary, file, indent=2)
 
+        # Store extras
+        self.maritime_metrics.save_extras(self.cfg.PATHS.RESULTS, method_name)
+
         return overall_summary
 
 
@@ -193,5 +196,6 @@ class PanopticEvaluator():
 
         # Store extras
         self.pq.save_extras(self.cfg.PATHS.RESULTS, method_name)
+        self.pq_agnostic.save_extras(self.cfg.PATHS.RESULTS, method_name, postfix='_agnostic')
 
         return overall_summary

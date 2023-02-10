@@ -3,6 +3,8 @@
 import numpy as np
 import cv2
 from panopticapi.utils import rgb2id
+import json
+import os
 
 class Metric():
     def compute(self, mask_pred, mask_gt, **kwargs):
@@ -96,10 +98,15 @@ class MaritimeMetrics(Metric):
         self._water_fp_area = 0
         self._water_total = 0
 
+        # Frame data
+        self._frame_data = []
+
     def compute(self, mask_pred, gt_sem, gt_pan, ann_pan, image_name):
         # Get water-edge area mask
         water_mask = (gt_sem == self.water_class).astype(np.uint8) # Water mask
         obstacle_mask = (gt_pan[...,0] == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS).astype(np.uint8) # Static obstacles mask
+
+        segment_data = []
 
         # 1. Dynamic obstacles recall
         valid_preds = (mask_pred == self.obstacle_class).astype(np.uint8)
@@ -120,9 +127,20 @@ class MaritimeMetrics(Metric):
             if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area: # TODO: IoU instead of coverage?
                 self._dyobs_tp += 1
                 num_tp += 1
+                det_type = 'TP'
             else:
                 self._dyobs_fn += 1
                 num_fn += 1
+                det_type = 'FN'
+
+            # Store segment match info
+            segment_data.append(dict(
+                type=det_type,
+                category_id=int(obst_ann['category_id']),
+                coverage=pred_area/total_area,
+                area=int(obst_ann['area']),
+                bbox=obst_ann['bbox']
+            ))
 
 
         # 2. Water-edge boundary accuracy
@@ -161,8 +179,26 @@ class MaritimeMetrics(Metric):
 
         water_area = water_mask_e.sum()
         fp_mask = (mask_pred == self.obstacle_class) * water_mask_e
-        num_fp, _ = cv2.connectedComponents(fp_mask.astype(np.uint8))
-        num_fp -= 1
+        conn_num, conn_mask = cv2.connectedComponents(fp_mask.astype(np.uint8))
+
+        # Get BBoxes for FPs
+        for seg_i in range(1, conn_num):
+            m = conn_mask == seg_i
+            ys,xs = np.where(m)
+            y0,y1 = int(np.min(ys)), int(np.max(ys))
+            x0,x1 = int(np.min(xs)), int(np.max(xs))
+
+            bbox = (x0, y0, x1-x0+1, y1-y0+1)
+
+            # Store segment match info
+            segment_data.append(dict(
+                type='FP',
+                category_id=None,
+                area=int(np.sum(m)),
+                bbox=bbox
+            ))
+
+        num_fp = conn_num - 1
         fp_area = np.sum(fp_mask)
         self._water_total += water_area
         self._water_fp_area += fp_area
@@ -178,12 +214,25 @@ class MaritimeMetrics(Metric):
             'FPr': fp_area / water_area * 100 if water_area > 0 else 0.,
         }
 
+        # Frame data
+        self._frame_data.append(dict(
+            image_name=image_name,
+            segment_data=segment_data
+        ))
+
         # Return current frame summary and overall summary
         return frame_summary, self.summary()
 
+    def save_extras(self, path, method_name):
+        # Save segments data
+        data = {'frames': self._frame_data}
+        with open(os.path.join(path, method_name + '_segments.json'), 'w') as file:
+            json.dump(data, file, indent=2)
+
+
     def summary(self):
-        pr = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fp)
-        re = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn)
+        pr = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fp) if self._dyobs_tp + self._dyobs_fp > 0 else 0
+        re = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn) if self._dyobs_tp + self._dyobs_fn > 0 else 0
         results = {
             'WE_acc': self._we_total_correct / self._we_total_area,
             'WE_IoU': self._we_total_intersection / self._we_total_union,
@@ -193,7 +242,7 @@ class MaritimeMetrics(Metric):
             'FPr': self._water_fp_area / self._water_total * 100.,
             'Pr': pr,
             'Re': re,
-            'F1': 2 * pr * re / (pr + re)
+            'F1': 2 * pr * re / (pr + re) if pr + re > 0 else 0
         }
 
         return results
