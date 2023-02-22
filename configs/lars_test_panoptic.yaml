@@ -21,4 +21,4 @@ SEGMENTATION:
     - [ 90,  75, 164] # Sky RGB color
 
 PROGRESS:
-  METRICS: ['PQ', 'PQ_th', 'PQ_st', 'aRQ_th']
+  METRICS: ['PQ', 'PQ_th', 'aPQ_th', 'WE_acc']

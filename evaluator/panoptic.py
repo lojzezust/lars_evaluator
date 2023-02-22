@@ -6,7 +6,7 @@ from panopticapi.utils import rgb2id
 import pandas as pd
 import json
 
-from evaluator.metrics import Metric
+from evaluator.metrics import Metric, dilate_mask
 
 
 class PanopticMetric(Metric):
@@ -47,10 +47,8 @@ class PQ(PanopticMetric):
                 'color': [255, 39, 43]
             }
 
-        self._pq_stat = PQStat()
-        self._pq_stat_frame = None
-        self._matched_segments = []
-        self._frame_data = []
+        # Init metrics
+        self.reset()
 
     def _resolve_id(self, cat_id):
         """Resolve category id (if agnostic group all thing IDs)."""
@@ -62,6 +60,28 @@ class PQ(PanopticMetric):
         return cat_id
 
     def compute(self, pan_pred, pan_gt, ann_gt, image_name, **kwargs):
+        # 1. Water-edge boundary accuracy
+        # Get common boundary by dilation
+        water_mask = (pan_gt[...,0] == self.cfg.PANOPTIC.WATER_CLASS).astype(np.uint8)
+        obstacle_mask = (pan_gt[...,0] == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS).astype(np.uint8)
+        dyn_obst_mask = (pan_gt[...,0] >= 10).astype(np.uint8)
+
+        wo_union = obstacle_mask | water_mask
+        obst_d = dilate_mask(obstacle_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
+        water_d = dilate_mask(water_mask, self.cfg.EVALUATION.WE_DILATION_SIZE)
+        dyn_obst_mask_d = dilate_mask(dyn_obst_mask, self.cfg.EVALUATION.SMALL_OBJECT_DILATION)
+
+        we_mask = obst_d & water_d & wo_union # Get border areas
+        we_mask = we_mask & ~dyn_obst_mask_d # Do not evaluate close to dynamic obstacles
+
+        # 1.2 Update WE metric(s)
+        # Accuracy inside boundary region
+        we_area = we_mask.sum()
+        we_correct = np.sum((pan_gt[...,0] == pan_pred[...,0]) * we_mask)
+        self._we_total_area += we_area
+        self._we_total_correct += we_correct
+
+        # 2. PQ metrics
         self._pq_stat_frame = PQStat()
 
         categories = self.categories
@@ -260,12 +280,14 @@ class PQ(PanopticMetric):
         self._pq_stat += self._pq_stat_frame
 
         frame_summary = self._get_summary(self._pq_stat_frame)
+        frame_summary['WE_acc'] = we_correct / we_area if we_area > 0 else 1.
         overall_summary = self.summary()
 
         # Frame data
         self._frame_data.append(dict(
             image_name=image_name,
-            segment_data=segment_data
+            segment_data=segment_data,
+            we_accuracy=float(frame_summary['WE_acc'])
         ))
 
         return frame_summary, overall_summary
@@ -273,6 +295,7 @@ class PQ(PanopticMetric):
 
     def summary(self):
         overall_summary = self._get_summary(self._pq_stat)
+        overall_summary['WE_acc'] = self._we_total_correct / self._we_total_area
 
         return overall_summary
 
@@ -320,3 +343,7 @@ class PQ(PanopticMetric):
         self._pq_stat_frame = PQStat()
         self._matched_segments = []
         self._frame_data = []
+
+        # WE metrics
+        self._we_total_area = 0
+        self._we_total_correct = 0
