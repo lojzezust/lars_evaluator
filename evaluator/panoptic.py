@@ -24,6 +24,10 @@ def _get_bbox(mask):
     bbox = int(xmin), int(ymin), int(xmax-xmin) + 1, int(ymax-ymin) + 1
     return bbox
 
+def _get_diagonal(seg_info):
+    """Computes the diagonal of a segment."""
+    return np.sqrt(seg_info['bbox'][2] ** 2 + seg_info['bbox'][3] ** 2)
+
 class PQ(PanopticMetric):
     def __init__(self, categories, cfg, class_agnostic=False, prefix=''):
         # TODO: cfg for void, etc.
@@ -105,17 +109,19 @@ class PQ(PanopticMetric):
             pred_id = label % OFFSET
             gt_pred_map[(gt_id, pred_id)] = intersection
 
-            # For each GT segment store segment with max intersection
+            # For each GT segment store intersecting segments
             if gt_id not in gt_segm_matches:
-                gt_segm_matches[gt_id] = (0, None)
+                gt_segm_matches[gt_id] = []
 
-            if intersection > gt_segm_matches[gt_id][0]:
-                gt_segm_matches[gt_id] = (intersection, pred_id)
+            gt_segm_matches[gt_id].append((intersection, pred_id))
 
+        # Sort segment matches by intersection (descending)
+        gt_segm_matches = {gt_id: sorted(matches, reverse=True) for gt_id, matches in gt_segm_matches.items()}
 
         # Store matched segment category ids (for confusion_matrix)
+        # TODO: revise
         for gt_id in gt_segm_matches:
-            intersection, pred_id = gt_segm_matches[gt_id]
+            intersection, pred_id = gt_segm_matches[gt_id][0]
 
             if gt_id not in gt_segms:
                 continue
@@ -135,81 +141,89 @@ class PQ(PanopticMetric):
             self._matched_segments.append((pred_cat_id, gt_cat_id, iou))
 
 
-        # count all matched pairs (true positives)
+        # Count True positives (matches) and False negatives (missing matches)
         segment_data = []
+        static_obst_lbl = None
+        crowd_labels_dict = {}
         gt_matched = set()
         pred_matched = set()
-        for label_tuple, intersection in gt_pred_map.items():
-            gt_label, pred_label = label_tuple
+        for gt_label in gt_segm_matches:
             if gt_label not in gt_segms:
                 continue
-            if pred_label not in pred_segms:
-                continue
-            if gt_segms[gt_label]['iscrowd'] == 1:
-                continue
 
-            gt_cat_id = self._resolve_id(gt_segms[gt_label]['category_id'])
-            pred_cat_id = self._resolve_id(pred_segms[pred_label]['category_id'])
+            gt_info = gt_segms[gt_label]
+            gt_cat_id = self._resolve_id(gt_info['category_id'])
 
-            if gt_cat_id != pred_cat_id:
-                continue
-
-            union = pred_segms[pred_label]['area'] + gt_segms[gt_label][
-                'area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
-            iou = intersection / union
-            if iou > 0.5:
-                self._pq_stat_frame[gt_cat_id].tp += 1
-                self._pq_stat_frame[gt_cat_id].iou += iou
-                gt_matched.add(gt_label)
-                pred_matched.add(pred_label)
-
-                # Store segment match info
-                segment_data.append(dict(
-                    type='TP',
-                    gt_label=int(gt_label),
-                    pred_label=int(pred_label),
-                    iou=iou,
-                    category_id=int(gt_cat_id),
-                    gt_area=int(gt_segms[gt_label]['area']),
-                    pred_area=int(pred_segms[pred_label]['area']),
-                    gt_bbox=gt_segms[gt_label]['bbox'],
-                    pred_bbox=pred_segms[pred_label]['bbox']
-                ))
-
-        # count false negatives
-        crowd_labels_dict = {}
-        static_obst_lbl = None
-        for gt_label, gt_info in gt_segms.items():
-            cat_id = self._resolve_id(gt_info['category_id'])
             # Store static obstacle panoptic label
-            if cat_id == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS:
+            if gt_cat_id == self.cfg.PANOPTIC.STATIC_OBSTACLE_CLASS:
                 static_obst_lbl = gt_label
 
-            if gt_label in gt_matched:
-                continue
-
-            # Ignore crowd segments for FNs and store their ids
+            # Ignore crowd segments for TPs/FNs and store their ids
             if gt_info['iscrowd'] == 1:
-                # TODO: still count crowd segments as FN if classified as water?
-                crowd_labels_dict[cat_id] = gt_label
-                continue
+                # Store crowd labels
+                crowd_labels_dict[gt_cat_id] = gt_label
+                continue # TODO: still count crowd segments as FN if classified as water?
 
-            self._pq_stat_frame[cat_id].fn += 1
+            # Set threshold according to GT size
+            iou_thresh = self.cfg.PANOPTIC.IOU_THRESH
+            if _get_diagonal(gt_info) < self.cfg.PANOPTIC.SMALL_OBJECT_DIAG_THRESH:
+                iou_thresh = self.cfg.PANOPTIC.SMALL_OBJECT_IOU_THRESH
 
-            # Store segment match info
-            segment_data.append(dict(
-                type='FN',
-                gt_label=int(gt_label),
-                category_id=int(cat_id),
-                gt_area=int(gt_info['area']),
-                gt_bbox=gt_info['bbox'],
-            ))
+            # Try to find matching segment (TP). Check overlapping segments starting with the one with largest intersection
+            matched = False
+            for intersection, pred_label in gt_segm_matches[gt_label]:
+                if pred_label not in pred_segms:
+                    continue
+
+                pred_info = pred_segms[pred_label]
+                pred_cat_id = self._resolve_id(pred_info['category_id'])
+
+                if gt_cat_id != pred_cat_id:
+                    continue
+
+                union = pred_info['area'] + gt_info['area'] - intersection - gt_pred_map.get((VOID, pred_label), 0)
+                iou = intersection / union
+
+                if iou > iou_thresh:
+                    self._pq_stat_frame[gt_cat_id].tp += 1
+                    self._pq_stat_frame[gt_cat_id].iou += iou
+                    gt_matched.add(gt_label)
+                    pred_matched.add(pred_label)
+
+                    # Store segment match info
+                    segment_data.append(dict(
+                        type='TP',
+                        gt_label=int(gt_label),
+                        pred_label=int(pred_label),
+                        iou=iou,
+                        category_id=int(gt_cat_id),
+                        gt_area=int(gt_info['area']),
+                        pred_area=int(pred_info['area']),
+                        gt_bbox=gt_info['bbox'],
+                        pred_bbox=pred_info['bbox']
+                    ))
+
+                    matched = True
+                    break
+
+            # If TP match not found, treat as FN
+            if not matched:
+                self._pq_stat_frame[gt_cat_id].fn += 1
+                # Store segment match info
+                segment_data.append(dict(
+                    type='FN',
+                    gt_label=int(gt_label),
+                    category_id=int(gt_cat_id),
+                    gt_area=int(gt_info['area']),
+                    gt_bbox=gt_info['bbox'],
+                ))
 
 
         # count false positives
         for pred_label, pred_info in pred_segms.items():
             if pred_label in pred_matched:
                 continue
+
             # intersection of the segment with VOID
             intersection = gt_pred_map.get((self.cfg.PANOPTIC.VOID_ID, pred_label), 0)
             # plus intersection with corresponding CROWD region if it exists
@@ -227,6 +241,7 @@ class PQ(PanopticMetric):
             # the segment correspond to VOID and CROWD regions
             # Predicted obstacles are also ignored if more than half of
             # the segment corresponds to STATIC OBSTACLES
+            # TODO: custom threshold
             if intersection / pred_info['area'] > 0.5:
                 continue
 

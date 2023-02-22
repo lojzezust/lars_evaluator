@@ -30,6 +30,10 @@ _C.PANOPTIC = CN()
 _C.PANOPTIC.VOID_ID = 0 # Class ID for void predictions
 _C.PANOPTIC.STATIC_OBSTACLE_CLASS = 1 # Class ID of static obstacles
 _C.PANOPTIC.DYN_OBST_IDS = [11,12,13,14,15,16,17,19] # IDs that count as dynamic obstacles
+_C.PANOPTIC.IOU_THRESH = 0.5 # Normal IoU threshold
+
+_C.PANOPTIC.SMALL_OBJECT_DIAG_THRESH = 0 # Threshold for objects to be treated as SMALL objects TODO: enable
+_C.PANOPTIC.SMALL_OBJECT_IOU_THRESH = 0.3 # IoU threshold used on SMALL objects
 
 # All Paths
 _C.PATHS = CN()
