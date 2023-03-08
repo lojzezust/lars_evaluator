@@ -135,7 +135,11 @@ class PanopticEvaluator():
         self.pq = PM.PQ(self.categories, cfg)
         self.pq_agnostic = PM.PQ(self.categories, cfg, class_agnostic=True, prefix='a')
 
-    def evaluate_image(self, pan_pred, pan_gt, ann_gt, image_name):
+        # Semantic seg metrics
+        self.sem_iou = M.IoU(cfg)
+        self.sem_maritime_metrics = M.MaritimeMetrics(cfg)
+
+    def evaluate_image(self, pan_pred, pan_gt, ann_gt, sem_gt, image_name):
         """Evaluates a single image
 
         Args:
@@ -156,10 +160,27 @@ class PanopticEvaluator():
         frame_summary.update(a_frame_summary)
         overall_summary.update(a_overall_summary)
 
+        # 3. Evaluate semantic seg metrics
+
+        # Convert predictions to semantic seg format
+        sem_pred = np.full_like(sem_gt, fill_value=self.cfg.SEGMENTATION.OBSTACLE_CLASS)
+        sem_pred[pan_pred[...,0] == self.cfg.PANOPTIC.WATER_CLASS] = self.cfg.SEGMENTATION.WATER_CLASS
+        sem_pred[pan_pred[...,0] == self.cfg.PANOPTIC.SKY_CLASS] = self.cfg.SEGMENTATION.SKY_CLASS
+
+        iou_frame_summary, iou_overall_summary = self.sem_iou.compute(sem_pred, sem_gt, pan_gt, ann_gt, image_name)
+        mm_frame_summary_mar, mm_overall_summary_mar = self.sem_maritime_metrics.compute(sem_pred, sem_gt, pan_gt, ann_gt, image_name)
+
+        frame_summary.update({'sem_'+k: v for k,v in iou_frame_summary.items()})
+        frame_summary.update({'sem_'+k: v for k,v in mm_frame_summary_mar.items()})
+
+        overall_summary.update({'sem_'+k: v for k,v in iou_overall_summary.items()})
+        overall_summary.update({'sem_'+k: v for k,v in mm_overall_summary_mar.items()})
+
         return frame_summary, overall_summary
 
     def evaluate(self, method_name):
         preds_dir = os.path.join(self.cfg.PATHS.PREDICTIONS, method_name)
+        sem_gt_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.SEMANTIC_MASK_SUBDIR)
         pan_gt_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.PANOPTIC_MASK_SUBDIR)
 
         frame_results = []
@@ -169,10 +190,11 @@ class PanopticEvaluator():
                 pred_pan = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
 
                 # Read GT
+                sem_gt = np.array(Image.open(os.path.join(sem_gt_dir, '%s.png' % img_name)))
                 pan_gt = np.array(Image.open(os.path.join(pan_gt_dir, '%s.png' % img_name)))
                 ann_gt = self.annotations[img_name]
 
-                frame_summary, overall_summary = self.evaluate_image(pred_pan, pan_gt, ann_gt, img_name)
+                frame_summary, overall_summary = self.evaluate_image(pred_pan, pan_gt, ann_gt, sem_gt, img_name)
                 frame_summary['image'] = img_name
                 frame_results.append(frame_summary)
 
@@ -187,6 +209,10 @@ class PanopticEvaluator():
         overall_summary = self.pq.summary()
         overall_summary.update(self.pq_agnostic.summary())
 
+        # Add segmentation metrics
+        overall_summary.update({'sem_'+k:v for k,v in self.sem_iou.summary().items()})
+        overall_summary.update({'sem_'+k:v for k,v in self.sem_maritime_metrics.summary().items()})
+
         if not osp.exists(self.cfg.PATHS.RESULTS):
             os.makedirs(self.cfg.PATHS.RESULTS)
 
@@ -197,5 +223,6 @@ class PanopticEvaluator():
         # Store extras
         self.pq.save_extras(self.cfg.PATHS.RESULTS, method_name)
         self.pq_agnostic.save_extras(self.cfg.PATHS.RESULTS, method_name, postfix='_agnostic')
+        self.sem_maritime_metrics.save_extras(self.cfg.PATHS.RESULTS, method_name, postfix='_sem')
 
         return overall_summary

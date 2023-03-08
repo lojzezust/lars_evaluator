@@ -46,7 +46,7 @@ class IoU(Metric):
 
             # Store current frame IoU
             cls_name = self.class_names[i] if self.class_names is not None else '%d' % cls_i
-            frame_summary['IoU_%s' % cls_name] = intersection / union if union != 0 else 1.
+            frame_summary['IoU_%s' % cls_name] = 100. * intersection / union if union != 0 else 100.
 
         frame_summary['mIoU'] = sum(frame_summary.values()) / len(frame_summary)
 
@@ -56,7 +56,7 @@ class IoU(Metric):
     def summary(self):
         results = {}
         for i, cls_i in enumerate(self.classes):
-            cls_iou = self._total_intersection[cls_i] / self._total_union[cls_i]
+            cls_iou = 100. * self._total_intersection[cls_i] / self._total_union[cls_i]
             cls_name = self.class_names[i] if self.class_names is not None else '%d' % cls_i
             results['IoU_%s' % cls_name] = cls_iou
 
@@ -206,12 +206,12 @@ class MaritimeMetrics(Metric):
 
         # Metrics of the current frame
         frame_summary = {
-            'WE_acc': we_correct / we_area if we_area > 0 else 1.,
-            'WE_IoU': we_intersection / we_union if we_union > 0 else 1.,
+            'WE_acc': 100. * we_correct / we_area if we_area > 0 else 100.,
+            'WE_IoU': 100. * we_intersection / we_union if we_union > 0 else 100.,
             'TP': num_tp,
             'FN': num_fn,
             'FP': num_fp,
-            'FPr': fp_area / water_area * 100 if water_area > 0 else 0.,
+            'FPr': 100. * fp_area / water_area * 100 if water_area > 0 else 0.,
         }
 
         # Frame data
@@ -223,10 +223,10 @@ class MaritimeMetrics(Metric):
         # Return current frame summary and overall summary
         return frame_summary, self.summary()
 
-    def save_extras(self, path, method_name):
+    def save_extras(self, path, method_name, postfix=''):
         # Save segments data
         data = {'frames': self._frame_data}
-        with open(os.path.join(path, method_name + '_segments.json'), 'w') as file:
+        with open(os.path.join(path, method_name + '_segments%s.json' % postfix), 'w') as file:
             json.dump(data, file, indent=2)
 
 
@@ -234,15 +234,15 @@ class MaritimeMetrics(Metric):
         pr = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fp) if self._dyobs_tp + self._dyobs_fp > 0 else 0
         re = self._dyobs_tp / (self._dyobs_tp + self._dyobs_fn) if self._dyobs_tp + self._dyobs_fn > 0 else 0
         results = {
-            'WE_acc': self._we_total_correct / self._we_total_area,
-            'WE_IoU': self._we_total_intersection / self._we_total_union,
+            'WE_acc': 100. * self._we_total_correct / self._we_total_area,
+            'WE_IoU': 100. * self._we_total_intersection / self._we_total_union,
             'TP': self._dyobs_tp,
             'FN': self._dyobs_fn,
             'FP': self._dyobs_fp,
             'FPr': self._water_fp_area / self._water_total * 100.,
-            'Pr': pr,
-            'Re': re,
-            'F1': 2 * pr * re / (pr + re) if pr + re > 0 else 0
+            'Pr': 100. * pr,
+            'Re': 100. * re,
+            'F1': 100. * 2 * pr * re / (pr + re) if pr + re > 0 else 0
         }
 
         return results

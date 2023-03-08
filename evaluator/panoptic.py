@@ -280,7 +280,7 @@ class PQ(PanopticMetric):
         self._pq_stat += self._pq_stat_frame
 
         frame_summary = self._get_summary(self._pq_stat_frame)
-        frame_summary['WE_acc'] = we_correct / we_area if we_area > 0 else 1.
+        frame_summary['WE_acc'] = 100. * we_correct / we_area if we_area > 0 else 100.
         overall_summary = self.summary()
 
         # Frame data
@@ -295,7 +295,7 @@ class PQ(PanopticMetric):
 
     def summary(self):
         overall_summary = self._get_summary(self._pq_stat)
-        overall_summary['WE_acc'] = self._we_total_correct / self._we_total_area
+        overall_summary['WE_acc'] = 100. * self._we_total_correct / self._we_total_area
 
         return overall_summary
 
@@ -316,15 +316,15 @@ class PQ(PanopticMetric):
         # TODO: classwise results?
 
         result = dict()
-        result[self.prefix + 'PQ'] = 100 * pq_results['All']['pq']
-        result[self.prefix + 'SQ'] = 100 * pq_results['All']['sq']
-        result[self.prefix + 'RQ'] = 100 * pq_results['All']['rq']
-        result[self.prefix + 'PQ_th'] = 100 * pq_results['Things']['pq']
-        result[self.prefix + 'SQ_th'] = 100 * pq_results['Things']['sq']
-        result[self.prefix + 'RQ_th'] = 100 * pq_results['Things']['rq']
-        result[self.prefix + 'PQ_st'] = 100 * pq_results['Stuff']['pq']
-        result[self.prefix + 'SQ_st'] = 100 * pq_results['Stuff']['sq']
-        result[self.prefix + 'RQ_st'] = 100 * pq_results['Stuff']['rq']
+        result[self.prefix + 'PQ'] = 100. * pq_results['All']['pq']
+        result[self.prefix + 'SQ'] = 100. * pq_results['All']['sq']
+        result[self.prefix + 'RQ'] = 100. * pq_results['All']['rq']
+        result[self.prefix + 'PQ_th'] = 100. * pq_results['Things']['pq']
+        result[self.prefix + 'SQ_th'] = 100. * pq_results['Things']['sq']
+        result[self.prefix + 'RQ_th'] = 100. * pq_results['Things']['rq']
+        result[self.prefix + 'PQ_st'] = 100. * pq_results['Stuff']['pq']
+        result[self.prefix + 'SQ_st'] = 100. * pq_results['Stuff']['sq']
+        result[self.prefix + 'RQ_st'] = 100. * pq_results['Stuff']['rq']
 
         return result
 
