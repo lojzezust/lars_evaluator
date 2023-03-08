@@ -212,7 +212,14 @@ class PQ(PanopticMetric):
             if gt_info['iscrowd'] == 1:
                 # TODO: still count crowd segments as FN if classified as water?
                 crowd_labels_dict[cat_id] = gt_label
-                continue
+
+                # If less than half of segment is covered non-obstacle predictions (void, water, sky), don't count as FN
+                intersection = 0
+                for seg_id in [self.cfg.PANOPTIC.VOID_ID, self.cfg.PANOPTIC.WATER_CLASS, self.cfg.PANOPTIC.SKY_CLASS]:
+                    intersection += gt_pred_map.get((seg_id, pred_label), 0)
+
+                if intersection / gt_info['area'] < 0.5:
+                    continue
 
             self._pq_stat_frame[cat_id].fn += 1
 
@@ -224,7 +231,6 @@ class PQ(PanopticMetric):
                 gt_area=int(gt_info['area']),
                 gt_bbox=gt_info['bbox'],
             ))
-
 
         # count false positives
         for pred_label, pred_info in pred_segms.items():
