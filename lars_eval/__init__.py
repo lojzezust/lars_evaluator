@@ -1,2 +1,3 @@
 
-from .evaluator import SemanticEvaluator, PanopticEvaluator
+from lars_eval import *
+from lars_eval.evaluator import SemanticEvaluator, PanopticEvaluator
