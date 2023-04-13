@@ -20,7 +20,7 @@ setuptools.setup(
     ],
     python_requires='>=3.8',
     install_requires=[
-        'panopticapi',
+        'git+https://github.com/cocodataset/panopticapi.git',
         'Pillow',
         'numpy',
         'yacs',
