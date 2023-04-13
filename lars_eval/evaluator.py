@@ -5,10 +5,10 @@ import os.path as osp
 from tqdm.auto import tqdm
 import pandas as pd
 import json
-import evaluator.context as ctx
 
-import evaluator.metrics as M
-import evaluator.panoptic as PM
+import lars_eval.context as ctx
+import lars_eval.metrics as M
+import lars_eval.panoptic as PM
 
 
 def parse_annotations(json_data):

@@ -1,12 +1,12 @@
 from PIL import Image
 import numpy as np
 import argparse
-
-from evaluator import SemanticEvaluator, PanopticEvaluator
-from evaluator.config import get_cfg
 from multiprocessing import Pool
-from evaluator.utils import TqdmPool
 from tqdm.auto import tqdm
+
+from lars_eval import SemanticEvaluator, PanopticEvaluator
+from lars_eval.config import get_cfg
+from lars_eval.utils import TqdmPool
 
 WORKERS=8
 

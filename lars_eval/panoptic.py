@@ -6,7 +6,7 @@ from panopticapi.utils import rgb2id
 import pandas as pd
 import json
 
-from evaluator.metrics import Metric, dilate_mask
+from lars_eval.metrics import Metric, dilate_mask
 
 
 class PanopticMetric(Metric):
