@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="lars_evaluator",
-    version="0.1.2",
+    version="0.1.3",
     author="Lojze Žust",
     author_email="lojze.zust@fri.uni-lj.si",
     description="Evaluation toolkit for the LaRS dataset.",
@@ -20,7 +20,6 @@ setuptools.setup(
     ],
     python_requires='>=3.8',
     install_requires=[
-        'panopticapi @ git+https://github.com/cocodataset/panopticapi.git',
         'Pillow',
         'numpy',
         'yacs',

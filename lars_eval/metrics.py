@@ -2,9 +2,10 @@
 
 import numpy as np
 import cv2
-from panopticapi.utils import rgb2id
 import json
 import os
+
+from lars_eval.panopticapi import rgb2id
 
 class Metric():
     def compute(self, mask_pred, mask_gt, **kwargs):

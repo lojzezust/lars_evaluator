@@ -1,11 +1,10 @@
-"""Panoptic Quality (PQ) metric adapted from MMDet and `panopticapi` (TODO)"""
+"""Panoptic Quality (PQ) metric adapted from MMDet and `panopticapi` (https://github.com/cocodataset/panopticapi)"""
 import os
 import numpy as np
-from panopticapi.evaluation import OFFSET, VOID, PQStat
-from panopticapi.utils import rgb2id
 import pandas as pd
 import json
 
+from lars_eval.panopticapi import OFFSET, VOID, PQStat, rgb2id
 from lars_eval.metrics import Metric, dilate_mask
 
 

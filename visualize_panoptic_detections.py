@@ -8,7 +8,7 @@ import argparse
 import matplotlib as mpl
 from tqdm.auto import tqdm
 from PIL import Image
-from panopticapi.utils import rgb2id, id2rgb
+from lars_eval.panopticapi import rgb2id, id2rgb
 import cv2
 import seaborn as sns
 
