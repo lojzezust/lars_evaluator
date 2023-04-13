@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="lars_evaluator",
-    version="0.1.1",
+    version="0.1.2",
     author="Lojze Žust",
     author_email="lojze.zust@fri.uni-lj.si",
     description="Evaluation toolkit for the LaRS dataset.",
