@@ -26,7 +26,6 @@ def _get_bbox(mask):
 
 class PQ(PanopticMetric):
     def __init__(self, categories, cfg, class_agnostic=False, prefix=''):
-        # TODO: cfg for void, etc.
         self.categories = categories
         self.cfg = cfg
         self.class_agnostic = class_agnostic
@@ -318,14 +317,14 @@ class PQ(PanopticMetric):
 
         return result
 
-    def save_extras(self, path, method_name, postfix=''):
+    def save_extras(self, path, postfix=''):
         # Save matched category pairs
         df = pd.DataFrame(self._matched_segments, columns=['pred', 'gt', 'iou'])
-        df.to_csv(os.path.join(path, method_name + '_obst_cls%s.csv' % postfix), index=False)
+        df.to_csv(os.path.join(path, 'obst_cls%s.csv' % postfix), index=False)
 
         # Save segments data
         data = {'frames': self._frame_data}
-        with open(os.path.join(path, method_name + '_segments%s.json' % postfix), 'w') as file:
+        with open(os.path.join(path, 'segments%s.json' % postfix), 'w') as file:
             json.dump(data, file, indent=2)
 
     def reset(self):

@@ -67,13 +67,12 @@ class SemanticEvaluator():
 
         return frame_summary, overall_summary
 
-    def evaluate(self, method_name):
-        preds_dir = os.path.join(self.cfg.PATHS.PREDICTIONS, method_name)
+    def evaluate(self, preds_dir, output_dir, display_name=None):
         sem_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.SEMANTIC_MASK_SUBDIR)
         pan_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.PANOPTIC_MASK_SUBDIR)
 
         frame_results = []
-        with tqdm(desc=method_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
+        with tqdm(desc=display_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
             for img_name in self.image_list:
                 mask_pred_c = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
 
@@ -103,15 +102,15 @@ class SemanticEvaluator():
         overall_summary = self.iou.summary()
         overall_summary.update(self.maritime_metrics.summary())
 
-        if not osp.exists(self.cfg.PATHS.RESULTS):
-            os.makedirs(self.cfg.PATHS.RESULTS)
+        if not osp.exists(output_dir):
+            os.makedirs(output_dir)
 
-        frame_results_df.to_csv(osp.join(self.cfg.PATHS.RESULTS, '%s_frames.csv' % method_name))
-        with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
+        frame_results_df.to_csv(osp.join(output_dir, 'frames.csv'))
+        with open(osp.join(output_dir, 'summary.json'), 'w') as file:
             json.dump(overall_summary, file, indent=2)
 
         # Store extras
-        self.maritime_metrics.save_extras(self.cfg.PATHS.RESULTS, method_name)
+        self.maritime_metrics.save_extras(output_dir)
 
         return overall_summary
 
@@ -178,13 +177,12 @@ class PanopticEvaluator():
 
         return frame_summary, overall_summary
 
-    def evaluate(self, method_name):
-        preds_dir = os.path.join(self.cfg.PATHS.PREDICTIONS, method_name)
+    def evaluate(self, preds_dir, output_dir, display_name=None):
         sem_gt_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.SEMANTIC_MASK_SUBDIR)
         pan_gt_dir = os.path.join(self.cfg.PATHS.DATASET_ROOT, self.cfg.DATASET.PANOPTIC_MASK_SUBDIR)
 
         frame_results = []
-        with tqdm(desc=method_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
+        with tqdm(desc=display_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
             for img_name in self.image_list:
                 # Read panoptic predictions
                 pred_pan = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
@@ -213,16 +211,16 @@ class PanopticEvaluator():
         overall_summary.update({'sem_'+k:v for k,v in self.sem_iou.summary().items()})
         overall_summary.update({'sem_'+k:v for k,v in self.sem_maritime_metrics.summary().items()})
 
-        if not osp.exists(self.cfg.PATHS.RESULTS):
-            os.makedirs(self.cfg.PATHS.RESULTS)
+        if not osp.exists(output_dir):
+            os.makedirs(output_dir)
 
-        frame_results_df.to_csv(osp.join(self.cfg.PATHS.RESULTS, '%s_frames.csv' % method_name))
-        with open(osp.join(self.cfg.PATHS.RESULTS, '%s.json' % method_name), 'w') as file:
+        frame_results_df.to_csv(osp.join(output_dir, 'frames.csv'))
+        with open(osp.join(output_dir, 'summary.json'), 'w') as file:
             json.dump(overall_summary, file, indent=2)
 
         # Store extras
-        self.pq.save_extras(self.cfg.PATHS.RESULTS, method_name)
-        self.pq_agnostic.save_extras(self.cfg.PATHS.RESULTS, method_name, postfix='_agnostic')
-        self.sem_maritime_metrics.save_extras(self.cfg.PATHS.RESULTS, method_name, postfix='_sem')
+        self.pq.save_extras(output_dir)
+        self.pq_agnostic.save_extras(output_dir, postfix='_agnostic')
+        self.sem_maritime_metrics.save_extras(output_dir, postfix='_sem')
 
         return overall_summary

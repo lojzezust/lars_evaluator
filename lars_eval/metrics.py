@@ -16,7 +16,7 @@ class Metric():
     def reset(self):
         pass
 
-    def save_extras(self, path, method_name):
+    def save_extras(self, path, **kwargs):
         pass
 
 class IoU(Metric):
@@ -223,10 +223,10 @@ class MaritimeMetrics(Metric):
         # Return current frame summary and overall summary
         return frame_summary, self.summary()
 
-    def save_extras(self, path, method_name, postfix=''):
+    def save_extras(self, path, postfix=''):
         # Save segments data
         data = {'frames': self._frame_data}
-        with open(os.path.join(path, method_name + '_segments%s.json' % postfix), 'w') as file:
+        with open(os.path.join(path, 'segments%s.json' % postfix), 'w') as file:
             json.dump(data, file, indent=2)
 
 
