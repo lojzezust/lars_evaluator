@@ -6,14 +6,15 @@ import os.path as osp
 from PIL import Image
 import json
 
-DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/split')
+DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/split_v0.9.3')
+# DATASET_ROOT = osp.expanduser('/storage/datasets/marine/LaRS_v0.9.1')
 
 class TestLaRSAnnotations(unittest.TestCase):
 
     def setUp(self):
         self.sets = {}
 
-        for ds_set in ['train', 'test', 'val', 'all']:
+        for ds_set in ['train', 'test', 'val']:
             with open(osp.join(DATASET_ROOT, ds_set, 'panoptic_annotations.json'), 'r') as file:
                 self.sets[ds_set] = json.load(file)
 
