@@ -2,9 +2,9 @@
 MODE: 'panoptic'
 
 PATHS:
-  DATASET_ROOT: '/home/lojze/data/datasets/LaRS/split/test'
-  PREDICTIONS: '/home/lojze/data/predictions/lars/panoptic'
-  RESULTS: './results_panoptic'
+  DATASET_ROOT: '/storage/datasets/marine/LaRS/v0.9.3/test'
+  PREDICTIONS: '/path/to/predictions/panoptic_v0.9.3'
+  RESULTS: './results/v0.9.3/panoptic'
 
 DATASET:
   IMAGE_SUBDIR: 'images'
