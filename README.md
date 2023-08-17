@@ -1,6 +1,6 @@
 # LaRS Evaluator
 
-[[`paper`](https://gmd.copernicus.org/articles/14/2057/2021/)] [[`dataset`](https://lojzezust.github.io/lars-dataset)] [[`evaluation webserver`](https://macvi.org)] [[`BibTeX`](#cite)]
+[[`paper`](#)] [[`dataset`](https://lojzezust.github.io/lars-dataset)] [[`evaluation webserver`](https://macvi.org)] [[`BibTeX`](#cite)]
 
 This is the evaluator code for the paper "LaRS: A Diverse Panoptic Maritime Obstacle Detection Dataset and Benchmark" presented at ICCV 2023. It can be used to evaluate **semantic segmentation** and **panoptic segmentation** predictions with the LaRS ground-truth annotations. Currently only the GT of the *validation* set is publicly available. For evaluation on the LaRS test set, please submit your submissions through [our evaluation server](https://macvi.org).
 
