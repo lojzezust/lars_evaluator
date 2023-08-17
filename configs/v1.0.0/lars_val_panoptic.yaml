@@ -1,0 +1,20 @@
+
+MODE: 'panoptic'
+
+PATHS:
+  # Val dataset root
+  DATASET_ROOT: 'path/to/LaRS/val'
+  # Path to the predictions root dir (contains prediction dirs for each method)
+  PREDICTIONS: '/path/to/predictions/panoptic'
+  # Evaluation results root output dir
+  RESULTS: './results/v1.0.0/panoptic'
+
+DATASET:
+  IMAGE_SUBDIR: 'images'
+  SEMANTIC_MASK_SUBDIR: 'semantic_masks'
+  PANOPTIC_MASK_SUBDIR: 'panoptic_masks'
+  PANOPTIC_ANN_FILE: 'panoptic_annotations.json'
+  SUBSET_LIST: 'image_list.txt'
+
+PROGRESS:
+  METRICS: ['PQ', 'PQ_th', 'aPQ_th', 'sem_F1']

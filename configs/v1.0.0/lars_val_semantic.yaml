@@ -2,9 +2,12 @@
 MODE: 'semantic'
 
 PATHS:
-  DATASET_ROOT: '/storage/datasets/marine/LaRS/v0.9.3/test'
-  PREDICTIONS: '/path/to/predictions/segmentation_v0.9.3'
-  RESULTS: './results/v0.9.3/semantic'
+  # Val dataset root
+  DATASET_ROOT: 'path/to/LaRS/val'
+  # Path to the predictions root dir (contains prediction dirs for each method)
+  PREDICTIONS: '/path/to/predictions/semantic'
+  # Evaluation results root output dir
+  RESULTS: './results/v1.0.0/semantic'
 
 DATASET:
   IMAGE_SUBDIR: 'images'
