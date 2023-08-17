@@ -7,8 +7,7 @@ from PIL import Image
 import filecmp
 import random
 
-DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/split_v0.9.3')
-# DATASET_ROOT = osp.expanduser('/storage/datasets/marine/LaRS_v0.9.1')
+DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/release/v1.0.0')
 
 class TestLaRSGeneral(unittest.TestCase):
 

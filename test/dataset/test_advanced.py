@@ -9,11 +9,11 @@ import random
 import numpy as np
 from tqdm.auto import tqdm
 
-DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/split_v0.9.3')
-# DATASET_ROOT = osp.expanduser('/storage/datasets/marine/LaRS_v0.9.1')
+DATASET_ROOT = osp.expanduser('~/data/datasets/LaRS/release/v1.0.0')
 
-THRESHOLD_HI = 1
+THRESHOLD_HI = 0.1
 THRESHOLD_LO = 0.001
+SUBSET_SIZE = 100 # Set to None to test on all images
 
 def img_diff(img1, img2, threshold=2):
     diff = np.mean(np.abs(img1.astype(float) - img2.astype(float)))
@@ -31,8 +31,6 @@ class TestLaRSAdvanced(unittest.TestCase):
 
     def test_seq_match(self):
         """Test that the files with the same name in the images_seq and images folders match."""
-
-        SUBSET_SIZE = None
 
         for ds_set in self.sets:
             imgs = self.sets[ds_set]
@@ -57,9 +55,24 @@ class TestLaRSAdvanced(unittest.TestCase):
 
                 images = sorted(os.listdir(seq_dir))
 
-                prev_img_name = osp.splitext(images[0])[0]
-                prev_img = np.array(Image.open(osp.join(seq_dir, images[0])))
-                for img_fn in tqdm(images[1:], desc=ds_set):
+                ixs = list(range(1, len(images)))
+                if SUBSET_SIZE is not None:
+                    # Test on random subset of images.
+                    random.shuffle(ixs)
+                    ixs = ixs[:SUBSET_SIZE]
+
+                prev_img_name = osp.splitext(images[ixs[0]-1])[0]
+                prev_img = np.array(Image.open(osp.join(seq_dir, images[ixs[0]-1])))
+
+                for i in tqdm(ixs, desc=ds_set):
+                    img_fn = images[i]
+
+                    # Read image if not already read
+                    n_prev_img_name = osp.splitext(images[i-1])[0]
+                    if n_prev_img_name != prev_img_name:
+                        prev_img_name = n_prev_img_name
+                        prev_img = np.array(Image.open(osp.join(seq_dir, images[i-1])))
+
                     img_name = osp.splitext(img_fn)[0]
                     img = np.array(Image.open(osp.join(seq_dir, img_fn)))
 
@@ -73,7 +86,7 @@ class TestLaRSAdvanced(unittest.TestCase):
                     if (prev_seq == cur_seq) and abs(prev_f - cur_f)==1:
                         diff = img_diff(prev_img, img)
                         if diff < THRESHOLD_HI:
-                            tqdm.write("WARN: Potential duplicate: %s - %d & %d" % (cur_seq, prev_f, cur_f))
+                            tqdm.write("WARN (%s): Potential duplicate: %s - %d & %d" % (ds_set, cur_seq, prev_f, cur_f))
                         self.assertTrue(diff > THRESHOLD_LO, "Duplicate frames %d & %d for sequence %s" % (prev_f, cur_f, cur_seq))
 
                     prev_img_name = img_name
