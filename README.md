@@ -28,6 +28,28 @@ Configure paths to the dataset and predictions root in config files for your ver
 
 Result files with various statistics will be placed in the configured directory (`results/v1.0.0/<track>/<method>` by default).
 
+## Result files
+
+### Semantic segmentation
+
+Results for semantic segmentation methods inlcude the following files:
+
+- `summary.csv`: Overall results (IoU, water-edge accuracy, detection F1)
+- `frames.csv`: Per frame metrics (number of TP, FP and FN, IoU, ...)
+- `segments.csv`: Segment-wise results (TP coverage, FP area, FN area, ...)
+
+### Panoptic segmentation
+
+Results for semantic segmentation methods inlcude the following files:
+
+- `summary.csv`: Overall results (PQ, RQ, SQ, semantic metrics)
+- `frames.csv`: Per frame metrics
+- `segments.csv`: Segment-wise results (TPs, FPs, FNs, areas, bboxes)
+- `segments_agnostic.csv`: Segment-wise results for obstacle-class-agnostic case
+- `segments_sem.csv`: Segment-wise results from semantic segmentation evaluation
+- `obst_csl.csv`: Matched segments (GT and pred) categories and IoU -> for confusion matrix
+- `obst_cls_agnostic.csv`: Matched segments categories and IoU for obstacle-class-agnostic case
+
 ## <a name="cite"></a>Citation
 
 If you use LaRS, please cite our paper.
