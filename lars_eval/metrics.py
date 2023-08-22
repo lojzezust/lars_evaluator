@@ -7,6 +7,10 @@ import os
 
 from lars_eval.panopticapi import rgb2id
 
+
+def _get_diagonal(bbox):
+    return np.sqrt(bbox[2]**2 + bbox[3]**2)
+
 class Metric():
     def compute(self, mask_pred, mask_gt, **kwargs):
         pass
@@ -140,7 +144,7 @@ class MaritimeMetrics(Metric):
                 category_id=int(obst_ann['category_id']),
                 coverage=pred_area/total_area,
                 area=int(obst_ann['area']),
-                bbox=obst_ann['bbox']
+                diagonal=_get_diagonal(obst_ann['bbox'])
             ))
 
 
@@ -196,7 +200,7 @@ class MaritimeMetrics(Metric):
                 type='FP',
                 category_id=None,
                 area=int(np.sum(m)),
-                bbox=bbox
+                diagonal=_get_diagonal(bbox)
             ))
 
         num_fp = conn_num - 1

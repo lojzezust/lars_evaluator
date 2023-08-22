@@ -23,6 +23,9 @@ def _get_bbox(mask):
     bbox = int(xmin), int(ymin), int(xmax-xmin) + 1, int(ymax-ymin) + 1
     return bbox
 
+def _get_diagonal(bbox):
+    return np.sqrt(bbox[2]**2 + bbox[3]**2)
+
 class PQ(PanopticMetric):
     def __init__(self, categories, cfg, class_agnostic=False, prefix=''):
         self.categories = categories
@@ -190,8 +193,8 @@ class PQ(PanopticMetric):
                     category_id=int(gt_cat_id),
                     gt_area=int(gt_segms[gt_label]['area']),
                     pred_area=int(pred_segms[pred_label]['area']),
-                    gt_bbox=gt_segms[gt_label]['bbox'],
-                    pred_bbox=pred_segms[pred_label]['bbox']
+                    gt_diagonal=_get_diagonal(pred_segms[pred_label]['bbox']),
+                    pred_diagnoal=_get_diagonal(gt_segms[gt_label]['bbox'])
                 ))
 
         # count false negatives
@@ -227,7 +230,7 @@ class PQ(PanopticMetric):
                 gt_label=int(gt_label),
                 category_id=int(cat_id),
                 gt_area=int(gt_info['area']),
-                gt_bbox=gt_info['bbox'],
+                gt_diagonal=_get_diagonal(gt_info['bbox']),
             ))
 
         # count false positives
@@ -263,7 +266,7 @@ class PQ(PanopticMetric):
                 pred_label=int(pred_label),
                 category_id=int(cat_id),
                 pred_area=int(pred_info['area']),
-                pred_bbox=pred_info['bbox']
+                pred_diagnoal=_get_diagonal(pred_info['bbox'])
             ))
 
         # Update global count
