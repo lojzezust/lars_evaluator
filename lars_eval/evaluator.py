@@ -74,7 +74,7 @@ class SemanticEvaluator():
         frame_results = []
         with tqdm(desc=display_name, total=len(self.image_list), position=ctx.PID, leave=False) as pbar:
             for img_name in self.image_list:
-                mask_pred_c = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)))
+                mask_pred_c = np.array(Image.open(os.path.join(preds_dir, '%s.png' % img_name)).convert('RGB'))
 
                 # Convert color mask to class ID
                 H,W,_ = mask_pred_c.shape
