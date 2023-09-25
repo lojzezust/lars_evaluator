@@ -194,7 +194,7 @@ class PQ(PanopticMetric):
                     gt_area=int(gt_segms[gt_label]['area']),
                     pred_area=int(pred_segms[pred_label]['area']),
                     gt_diagonal=_get_diagonal(pred_segms[pred_label]['bbox']),
-                    pred_diagnoal=_get_diagonal(gt_segms[gt_label]['bbox'])
+                    pred_diagonal=_get_diagonal(gt_segms[gt_label]['bbox'])
                 ))
 
         # count false negatives
@@ -266,7 +266,7 @@ class PQ(PanopticMetric):
                 pred_label=int(pred_label),
                 category_id=int(cat_id),
                 pred_area=int(pred_info['area']),
-                pred_diagnoal=_get_diagonal(pred_info['bbox'])
+                pred_diagonal=_get_diagonal(pred_info['bbox'])
             ))
 
         # Update global count
