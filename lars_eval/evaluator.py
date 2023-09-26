@@ -63,7 +63,9 @@ class SemanticEvaluator():
         frame_summary_mar, overall_summary_mar = self.maritime_metrics.compute(mask_pred, seg_mask, pan_mask, pan_ann, image_name)
 
         frame_summary.update(frame_summary_mar)
+
         overall_summary.update(overall_summary_mar)
+        overall_summary['Q'] = overall_summary['mIoU'] * overall_summary['F1'] * 0.01
 
         return frame_summary, overall_summary
 
@@ -101,6 +103,7 @@ class SemanticEvaluator():
         frame_results_df = pd.DataFrame(frame_results).set_index('image')
         overall_summary = self.iou.summary()
         overall_summary.update(self.maritime_metrics.summary())
+        overall_summary['Q'] = overall_summary['mIoU'] * overall_summary['F1'] * 0.01
 
         if not osp.exists(output_dir):
             os.makedirs(output_dir)
