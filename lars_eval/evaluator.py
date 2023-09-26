@@ -95,7 +95,7 @@ class SemanticEvaluator():
 
                 log_dict = {m:overall_summary[m] for m in self.cfg.PROGRESS.METRICS}
 
-                pbar.set_postfix(**log_dict)
+                pbar.set_postfix(log_dict)
                 pbar.update()
 
 
@@ -201,7 +201,7 @@ class PanopticEvaluator():
 
                 log_dict = {m:overall_summary[m] for m in self.cfg.PROGRESS.METRICS}
 
-                pbar.set_postfix(**log_dict)
+                pbar.set_postfix(log_dict)
                 pbar.update()
 
 
