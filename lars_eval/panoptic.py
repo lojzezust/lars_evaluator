@@ -34,7 +34,8 @@ class PQ(PanopticMetric):
         self.prefix = prefix
 
         if self.class_agnostic:
-            self.agnostic_id = 20 # TODO: config
+            # Arbitrary new class for all dynamic obstacles
+            self.agnostic_id = 20
             self.class_agnostic_cat = {cid: cat for cid, cat in categories.items() if cat['isthing'] == 0}
             self.class_agnostic_cat[self.agnostic_id] = {
                 'id': self.agnostic_id,
@@ -107,8 +108,6 @@ class PQ(PanopticMetric):
                 'category_id': cat_id,
                 'bbox': _get_bbox(pan_pred_id == label)
             })
-
-            # TODO: check if category_id is valid
 
 
         # Convert GT
@@ -211,7 +210,7 @@ class PQ(PanopticMetric):
 
             # Ignore crowd segments for FNs and store their ids
             if gt_info['iscrowd'] == 1:
-                # TODO: still count crowd segments as FN if classified as water?
+                # Count crowd segments as FN if classified as water or sky
                 crowd_labels_dict[cat_id] = gt_label
 
                 # If less than half of segment is covered non-obstacle predictions (void, water, sky), don't count as FN

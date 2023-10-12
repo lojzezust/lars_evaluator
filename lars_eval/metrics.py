@@ -129,7 +129,7 @@ class MaritimeMetrics(Metric):
             pred_area = np.sum(valid_preds & obst_mask_d)
             total_area = np.sum(obst_mask)
 
-            if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area: # TODO: IoU instead of coverage?
+            if pred_area > self.cfg.EVALUATION.MIN_COVERAGE * total_area:
                 self._dyobs_tp += 1
                 num_tp += 1
                 det_type = 'TP'
