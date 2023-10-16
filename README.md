@@ -4,7 +4,7 @@
 
 This is the evaluator code for the paper "LaRS: A Diverse Panoptic Maritime Obstacle Detection Dataset and Benchmark" presented at ICCV 2023. It can be used to evaluate **semantic segmentation** and **panoptic segmentation** predictions with the LaRS ground-truth annotations. 
 
-Currently only the GT of the *validation* set is publicly available. For evaluation on the LaRS test set, please submit your submissions through [our evaluation server](https://macvi.org).
+Currently only the GT of the *training* and *validation* sets is publicly available. For evaluation on the LaRS test set, please submit your submissions through [our evaluation server](https://macvi.org).
 
 ## Setup
 
@@ -13,14 +13,17 @@ Currently only the GT of the *validation* set is publicly available. For evaluat
     pip install -r requirements.txt
     ```
 2. For each of the evaluation tracks (semantic segmentation, panoptic segmentation) the evaluator expects a prediction root dir, where predictions will be placed.  
-Configure paths to the dataset and predictions root in config files for your version of LaRS (*e.g.* [lars_test_semantic.yaml](configs/v1.0.0/lars_val_semantic.yaml)).
+Configure paths to the dataset and predictions root in config files for your version of LaRS (*e.g.* [lars_val_semantic.yaml](configs/v1.0.0/lars_val_semantic.yaml)).
 
 ## Usage
 
 1. Place the predictions of your methods into `<prediction_root_dir>/<method_name>`
     The method dir contains PNG files with predictions for all test images:
-    - **Semantic segmentation**: The PNG file contains predicted segmentation masks, following the color coding of classes specified in the configuration file (*e.g.* [lars_test_semantic.yaml](configs/v0.9.3/lars_test_semantic.yaml)).
-    - **Panoptic segmentation**: The PNG file contains RGB coded class and instance predictions. The format follows LaRS GT masks: class id is stored in the R component, while instance ids are stored in the G and B components. 
+    - **Semantic segmentation**: The PNG file contains the predicted segmentation in RGB format, following the color coding of classes specified in the configuration file (*e.g.* [lars_val_semantic.yaml](configs/v1.0.0/lars_val_semantic.yaml)). By default this is:
+        - sky: `[90,  75, 164]`
+        - water: `[41, 167, 224]`
+        - obstacle: `[247, 195,  37]`
+    - **Panoptic segmentation**: The PNG file contains RGB coded class and instance predictions. The format follows LaRS GT masks: *class id* is stored in the **R** component, while *instance ids* are stored in the **G** and **B** components. 
 2. Run evaluation:
     ```bash
     $ python evaluate.py path/to/config.yaml <method_name>
