@@ -1,0 +1,27 @@
+
+MODE: 'semantic'
+
+PATHS:
+  # Val dataset root
+  DATASET_ROOT: 'path/to/LaRS/val'
+  # Path to the predictions root dir (contains prediction dirs for each method)
+  PREDICTIONS: '/path/to/predictions/semantic'
+  # Evaluation results root output dir
+  RESULTS: './results/v1.0.0/semantic'
+
+DATASET:
+  IMAGE_SUBDIR: 'images'
+  SEMANTIC_MASK_SUBDIR: 'semantic_masks'
+  PANOPTIC_MASK_SUBDIR: 'panoptic_masks'
+  PANOPTIC_ANN_FILE: 'panoptic_annotations.json'
+  SUBSET_LIST: 'image_list.txt'
+
+SEGMENTATION:
+  # Colors used in the predictions masks
+  COLORS: 
+    - 0 # Obstacles id
+    - 1 # Water id
+    - 2 # Sky id
+
+PROGRESS:
+  METRICS: ['Q', 'mIoU', 'WE_acc', 'F1']

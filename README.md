@@ -23,6 +23,7 @@ Configure paths to the dataset and predictions root in config files for your ver
         - sky: `[90,  75, 164]`
         - water: `[41, 167, 224]`
         - obstacle: `[247, 195,  37]`
+        - Alternatively you may use the [lars_val_semantic_lbl.yaml](configs/v1.0.0/lars_val_semantic_lbl.yaml) config to evaluate predictions encoded as class ids (0 = obstacles, 1 = water, 2 = sky). Note, however, that the online evaluator expects predictions in the **color-coded format**.
     - **Panoptic segmentation**: The PNG file contains RGB coded class and instance predictions. The format follows LaRS GT masks: *class id* is stored in the **R** component, while *instance ids* are stored in the **G** and **B** components. 
 2. Run evaluation:
     ```bash
