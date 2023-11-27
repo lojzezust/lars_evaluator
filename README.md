@@ -2,6 +2,12 @@
 
 [[`paper`](https://arxiv.org/abs/2308.09618)] [[`dataset`](https://lojzezust.github.io/lars-dataset)] [[`evaluation webserver`](https://macvi.org)] [[`BibTeX`](#cite)]
 
+
+<p align="center">
+    <img src="lars_ex.jpg" alt="LaRS Examples">
+    Examples of scenes in the LaRS benchmark.
+</p>
+
 This is the evaluator code for the paper "LaRS: A Diverse Panoptic Maritime Obstacle Detection Dataset and Benchmark" presented at ICCV 2023. It can be used to evaluate **semantic segmentation** and **panoptic segmentation** predictions with the LaRS ground-truth annotations. 
 
 Currently only the GT of the *training* and *validation* sets is publicly available. For evaluation on the LaRS test set, please submit your submissions through [our evaluation server](https://macvi.org).
