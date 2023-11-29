@@ -1,7 +1,9 @@
 # LaRS Evaluator
 
-[[`paper`](https://arxiv.org/abs/2308.09618)] [[`dataset`](https://lojzezust.github.io/lars-dataset)] [[`evaluation webserver`](https://macvi.org)] [[`BibTeX`](#cite)]
-
+[![arxiv](https://img.shields.io/badge/paper-52b69a?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2308.09618)
+[![dataset](https://img.shields.io/badge/dataset-34a0a4?style=for-the-badge&logo=DocuSign&logoColor=white)](https://lojzezust.github.io/lars-dataset)
+[![server](https://img.shields.io/badge/evaluation_server-168aad?style=for-the-badge&logo=windowsterminal&logoColor=white)](https://macvi.org)
+[![cite](https://img.shields.io/badge/bibtex-1a759f?style=for-the-badge&logo=overleaf&logoColor=white)](#cite)
 
 <p align="center">
     <img src="lars_ex.jpg" alt="LaRS Examples">
