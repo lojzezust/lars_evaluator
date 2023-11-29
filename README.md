@@ -36,7 +36,16 @@ Configure paths to the dataset and predictions root in config files for your ver
     $ python evaluate.py path/to/config.yaml <method_name>
     ```
 
-Result files with various statistics will be placed in the configured directory (`results/v1.0.0/<track>/<method>` by default).
+> [!NOTE]
+> Result files with various statistics will be placed in the configured directory (`results/v1.0.0/<track>/<method>` by default).
+
+## Starter packs
+
+We also provide the following starter packs for training and inferring on the LaRS dataset.
+
+**Semantic segmentation**
+
+[![lojzezust/mmsegmentation-macvi - GitHub](https://gh-card.dev/repos/lojzezust/mmsegmentation-macvi.svg)](https://github.com/lojzezust/mmsegmentation-macvi)
 
 ## Result files
 
