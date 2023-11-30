@@ -41,6 +41,12 @@ Configure paths to the dataset and predictions root in config files for your ver
 > [!NOTE]
 > Result files with various statistics will be placed in the configured directory (`results/v1.0.0/<track>/<method>` by default).
 
+## Evaluation server
+
+You can evaluate your methods on the LaRS **test** set through our online [evaluation server](https://macvi.org/). You need to create an account to submit your results.
+
+The same prediction formats for semantic and panoptic segmentation tasks are expected by the server. The predictions of a single method need to be stored into a .zip archive and submitted to the server. [More information >](https://macvi.org/dataset#LaRS)
+
 ## Starter packs
 
 We also provide the following starter packs for training and inferring on the LaRS dataset.
